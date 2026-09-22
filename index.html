@@ -86,9 +86,15 @@ nav.tabs button.active{color:var(--brand);font-weight:700}
 .list-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);gap:10px}
 .list-item:last-child{border-bottom:0}
 .avatar{width:38px;height:38px;border-radius:50%;background:var(--brand-soft);color:var(--brand);display:flex;align-items:center;justify-content:center;font-weight:800;flex:none}
-.tabs2{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:12px;overflow-x:auto}
-.tabs2 button{border:0;background:none;padding:8px 12px;cursor:pointer;color:var(--muted);font-weight:600;border-bottom:2px solid transparent;white-space:nowrap}
-.tabs2 button.active{color:var(--brand);border-bottom-color:var(--brand)}
+.tabs2{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tabs2 button{flex:1 1 auto;border:1px solid var(--line);background:var(--card);padding:9px 10px;cursor:pointer;color:var(--muted);font-weight:600;border-radius:10px;white-space:nowrap;font-size:13.5px;min-height:40px}
+.tabs2 button.active{color:#fff;background:var(--brand);border-color:var(--brand)}
+.tabs2.fin{border-bottom:0}
+.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.quick button{padding:12px 6px;border:1px solid var(--line);border-radius:12px;background:var(--brand-soft);color:var(--brand);font-weight:700;cursor:pointer;font-size:13.5px;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:64px}
+.quick button .ic{font-size:22px;line-height:1}
+.list-item.tap{-webkit-tap-highlight-color:rgba(13,79,194,.15);min-height:56px}
+.list-item.tap:active{background:var(--brand-soft)}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)} th{font-size:12px;color:var(--muted)}
 .right{text-align:right}
@@ -216,7 +222,7 @@ th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)} th{fo
     <button class="btn sm" onclick="finShift(1)">›</button>
   </div>
   <div class="kpi" id="finKpi"></div>
-  <div class="tabs2"><button id="finTabIn" class="active" onclick="finTab='in';renderFin()">Έσοδα</button><button id="finTabOut" onclick="finTab='out';renderFin()">Έξοδα</button></div>
+  <div class="tabs2 fin"><button id="finTabIn" class="active" onclick="finTab='in';renderFin()">Έσοδα</button><button id="finTabOut" onclick="finTab='out';renderFin()">Έξοδα</button></div>
   <div id="finIn">
   <div class="card"><h3>Ανά πελάτη</h3><div id="finByClient"></div></div>
   <div class="card"><h3>⚠️ Απλήρωτες συνεδρίες (όλες)</h3><div id="finUnpaid"></div></div>
@@ -678,7 +684,7 @@ function renderClients(){
   $('clientList').innerHTML=list.length?list.map(c=>{const ss=DB.sessions.filter(s=>s.clientId===c.id);
     const next=ss.filter(s=>s.status==='planned'&&s.date>=isoOf(new Date())).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time))[0];
     const owed=ss.filter(s=>billable(s)&&!s.paid).reduce((a,s)=>a+(+s.fee||0),0);
-    return `<div class="list-item" style="cursor:pointer" onclick="viewClient('${c.id}')">
+    return `<div class="list-item tap" role="button" style="cursor:pointer" onclick="viewClient('${c.id}')">
       <div class="row" style="gap:10px;flex-wrap:nowrap"><div class="avatar">${esc(initials(c))}</div>
       <div><b>${esc(cname(c))}</b><div class="small muted">${c.addr?'📍 '+esc(c.addr.split(',').slice(-1)[0].trim()||c.addr):'χωρίς διεύθυνση'} · ${ss.filter(s=>s.status==='done').length} συνεδρίες</div>
       ${next?`<div class="small">Επόμενη: ${fmtD(next.date)} ${esc(next.time)}</div>`:''}</div></div>
@@ -707,6 +713,11 @@ function viewClient(id,tab){const c=client(id);if(!c)return;viewTab=tab||viewTab
   const field=(l,v,html)=>v?`<div style="margin-bottom:8px"><div class="small muted">${l}</div><div>${html||esc(v)}</div></div>`:'';
   let body='';
   if(viewTab==='profile')body=`
+    <div class="quick noprint">
+      <button onclick="${c.q?`viewClient('${id}','q')`:`openQ('${id}')`}"><span class="ic">📝</span>${c.q?'Ιστορικό':'Συμπλήρωση ιστορικού'}</button>
+      <button onclick="viewClient('${id}','files')"><span class="ic">📋</span>Έγγραφα (${DB.docs.filter(d=>d.clientId===id).length})</button>
+      <button onclick="openSession(null,null,'${id}')"><span class="ic">🧑‍⚕️</span>Νέα συνεδρία</button>
+    </div>
     <div class="grid2">
       ${field('Τηλέφωνο',c.phone,`<a href="tel:${phoneClean(c.phone)}">${esc(c.phone)}</a>`)}${field('Email',c.email,`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`)}
       ${field('Ηλικία',age!==null?age+' ετών ('+fmtD(c.dob)+')':'')}${field('Κατάσταση',STATUS_L[c.status])}
@@ -772,8 +783,8 @@ const MAP_TYPES=[['Πόνος','#e0342f'],['Μυϊκή ένταση','#5b8fd6'],
 const BODY_FRONT='M50 6c-7 0-11 6-11 13 0 6 3 10 5 12v5c-9 3-18 7-22 12-3 4-4 12-5 22l-4 32c-1 4 1 6 4 6s5-2 6-6l6-30 2 8c-1 10-2 20-1 30l1 18c-1 12 1 26 3 36 1 4-1 8 0 12s5 4 7 1c1-8 3-16 4-24 1-9 3-18 5-27 2 9 4 18 5 27 1 8 3 16 4 24 2 3 6 3 7-1s-1-8 0-12c2-10 4-24 3-36l1-18c1-10 0-20-1-30l2-8 6 30c1 4 3 6 6 6s5-2 4-6l-4-32c-1-10-2-18-5-22-4-5-13-9-22-12v-5c2-2 5-6 5-12 0-7-4-13-11-13z';
 let qMap=[],qMapType=0;
 function bodySVG(side){const dots=qMap.filter(m=>m.side===side).map((m,i)=>`<circle cx="${m.x}" cy="${m.y}" r="3.2" fill="${MAP_TYPES[m.t][1]}" stroke="#fff" stroke-width=".8"><title>${MAP_TYPES[m.t][0]}</title></circle>`).join('');
-  return `<div style="text-align:center"><svg viewBox="0 0 100 200" onclick="mapClick(event,'${side}')"><path d="${BODY_FRONT}"/>${side==='back'?'<line x1="50" y1="30" x2="50" y2="105" stroke="#9aa9a6" stroke-width=".8" stroke-dasharray="2 2"/>':''}${dots}</svg><div class="small muted">${side==='front'?'Μπροστά':'Πίσω'}</div></div>`;}
-function mapClick(e,side){const svg=e.currentTarget;const r=svg.getBoundingClientRect();const x=(e.clientX-r.left)/r.width*100,y=(e.clientY-r.top)/r.height*200;
+  return `<div style="text-align:center"><svg viewBox="0 0 100 200" style="touch-action:none" onpointerup="mapClick(event,'${side}')"><path d="${BODY_FRONT}"/>${side==='back'?'<line x1="50" y1="30" x2="50" y2="105" stroke="#9aa9a6" stroke-width=".8" stroke-dasharray="2 2"/>':''}${dots}</svg><div class="small muted">${side==='front'?'Μπροστά':'Πίσω'}</div></div>`;}
+function mapClick(e,side){e.preventDefault();const svg=e.currentTarget;const r=svg.getBoundingClientRect();const x=(e.clientX-r.left)/r.width*100,y=(e.clientY-r.top)/r.height*200;if(x<0||x>100||y<0||y>200)return;
   const hit=qMap.findIndex(m=>m.side===side&&Math.hypot(m.x-x,m.y-y)<5);if(hit>=0)qMap.splice(hit,1);else qMap.push({side,x:Math.round(x*10)/10,y:Math.round(y*10)/10,t:qMapType});renderMap();}
 function renderMap(){const b=$('qmapBox');if(!b)return;b.innerHTML=`<div class="chips" style="margin-bottom:8px">${MAP_TYPES.map((m,i)=>`<span class="chip ${qMapType===i?'on':''}" style="${qMapType===i?'background:'+m[1]+';border-color:'+m[1]:''}" onclick="qMapType=${i};renderMap()">● ${m[0]}</span>`).join('')}<span class="chip" onclick="qMap=[];renderMap()">Καθαρισμός</span></div>
     <div class="bodymap">${bodySVG('front')}${bodySVG('back')}</div><div class="small muted" style="text-align:center;margin-top:4px">Πάτα πάνω στο σώμα για να βάλεις σημείο · ξαναπάτα το για να το σβήσεις</div>`;}
@@ -1043,6 +1054,7 @@ function exportCSV(){const rows=[['Ημερομηνία','Ώρα','Πελάτη�
 function wipeAll(){if(!confirm('Διαγραφή ΟΛΩΝ των δεδομένων; Κάνε πρώτα export!'))return;if(!confirm('Σίγουρα; Δεν αναιρείται.'))return;localStorage.removeItem(KEY);DB=load();render();toast('Διαγράφηκαν');}
 
 /* ================= INIT ================= */
+window.addEventListener('error',e=>{try{toast('⚠️ Σφάλμα: '+(e.message||'').slice(0,80));}catch(x){}});
 applyTheme();
 if(DB.settings.pin){$('lock').classList.add('open');setTimeout(()=>$('lockPin').focus(),100);}
 render();
