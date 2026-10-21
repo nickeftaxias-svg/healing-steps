@@ -510,6 +510,9 @@ td .btn{padding:5px 10px;font-size:12px} td.right{white-space:nowrap}
     <p class="small muted">Διαθέσιμα: {όνομα} {ημέρα} {ώρα} {θεραπευτής} {διεύθυνση}</p>
     <label>Προεπιλεγμένος τρόπος επικοινωνίας</label>
     <select id="sMsg"><option value="sms">SMS</option><option value="whatsapp">WhatsApp</option><option value="viber">Viber</option></select>
+    <label for="sNav">Εφαρμογή πλοήγησης (σε αυτή τη συσκευή)</label>
+    <select id="sNav" onchange="setNavApp(this.value)"><option value="google">Google Maps</option><option value="waze">Waze</option><option value="apple">Apple Maps (iPhone)</option></select>
+    <p class="small muted">Το κουμπί 🧭 ανοίγει αυτή την εφαρμογή. Η «Διαδρομή ημέρας» με πολλές στάσεις ανοίγει πάντα σε Google Maps, γιατί μόνο αυτό δέχεται ενδιάμεσες στάσεις.</p>
     <div class="check"><input type="checkbox" id="sNoShow"><label for="sNoShow" style="margin:0">Χρέωση συνεδρίας σε «Δεν εμφανίστηκε» (πολιτική 24ώρου) — μετράει ως οφειλή</label></div>
     <div class="check"><input type="checkbox" id="sLocalHol"><label for="sLocalHol" style="margin:0">Τοπική αργία Θεσσαλονίκης (26/10 Αγ. Δημητρίου)</label></div>
     <div class="row" style="margin-top:12px"><button class="btn primary" onclick="saveSettings()">Αποθήκευση</button></div>
@@ -847,7 +850,15 @@ const STATUS={planned:['Προγραμματισμένη','info'],done:['Ολο�
 const TYPE={home:'🏠 Κατ\' οίκον',online:'💻 Online',office:'🏢 Γραφείο',activity:'📌 Δραστηριότητα'};
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800);}
 function mapsLink(addr){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(addr);}
-function navLink(addr){return 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(addr)+'&travelmode=driving';}
+function navApp(){try{return localStorage.getItem('hs_navapp')||'google';}catch(e){return 'google';}}
+function setNavApp(v){try{localStorage.setItem('hs_navapp',v);}catch(e){}toast('Πλοήγηση με '+({google:'Google Maps',waze:'Waze',apple:'Apple Maps'})[v]);render();}
+// ll μόνο όταν ο χρήστης έχει βάλει καρφίτσα (llManual) — η αυτόματη γεωκωδικοποίηση μπορεί να πέσει λίγο δίπλα
+function navLink(addr,ll){const dst=ll?ll[0]+','+ll[1]:addr;const a=navApp();
+  if(a==='waze')return ll?`https://waze.com/ul?ll=${ll[0]},${ll[1]}&navigate=yes`:`https://waze.com/ul?q=${encodeURIComponent(addr)}&navigate=yes`;
+  if(a==='apple')return `https://maps.apple.com/?daddr=${encodeURIComponent(dst)}&dirflg=d`;
+  return 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(dst)+'&travelmode=driving';}
+const pinLL=o=>o&&o.llManual&&o.ll?o.ll:null;
+const stopKey=s=>s.kind==='activity'?s.id:s.clientId;
 function phoneClean(p){return (p||'').replace(/[^\d+]/g,'');}
 function msgLink(phone,text){const p=phoneClean(phone);const t=encodeURIComponent(text);
   const m=DB.settings.msg;if(m==='whatsapp')return `https://wa.me/${p.replace('+','')}?text=${t}`;
@@ -882,7 +893,11 @@ function renderToday(){
    <div class="card"><div class="v" style="color:${unpaidAll?'var(--warn)':'var(--brand)'}">${unpaidAll}</div><div class="l">απλήρωτες συνολικά</div></div>`;
   // route link (Google Maps multi-stop)
   const rb=$('routeBtn');
-  if(homes.length){const pts=homes.map(stopAddr);
+  const nowM=new Date().getHours()*60+new Date().getMinutes(),isToday=todayOffset===0;
+  const left=homes.filter(s=>s.status!=='done'&&s.status!=='noshow'&&!(isToday&&s.time&&mins(s.time)+(+s.dur||0)<nowM));
+  const routeStops=left.length?left:homes;
+  if(homes.length){const pts=routeStops.map(s=>{const ll=pinLL(s.kind==='activity'?s:client(s.clientId));return ll?ll.join(','):stopAddr(s);});
+    rb.textContent=left.length&&left.length<homes.length?`🗺️ Διαδρομή (${left.length} που μένουν)`:'🗺️ Διαδρομή ημέρας';
     rb.href='https://www.google.com/maps/dir/?api=1&origin=Current+Location&destination='+encodeURIComponent(pts[pts.length-1])+(pts.length>1?'&waypoints='+encodeURIComponent(pts.slice(0,-1).join('|')):'')+'&travelmode=driving';rb.style.display='';}
   else rb.style.display='none';
   // αργία
@@ -893,20 +908,20 @@ function renderToday(){
   $('celebList').innerHTML=cel.map(({c,l,t})=>{const txt=`Χρόνια πολλά ${c.first}! ${t==='γιορτάζει'?'Να χαίρεσαι το όνομά σου.':'Να τα εκατοστίσεις.'} ${DB.settings.name||''}`.trim();
     return `<div class="list-item"><div><b>${esc(cname(c))}</b> <span class="small muted">${t} ${l}</span></div>${c.phone?`<a class="btn sm" href="${msgLink(c.phone,txt)}">💬 Ευχές</a>`:''}</div>`;}).join('');
   if(!list.length){$('todayList').innerHTML=`<div class="card empty">Καμία συνεδρία.<br><button class="btn primary sm" style="margin-top:10px" onclick="openSession(null,'${iso}')">＋ Προσθήκη</button></div>`;}
-  else{let html='';let prevEnd=null;let prevKey=DB.settings.base?'base':null;let dayKm=0;
+  else{let html='';let prevEnd=null;let prevKey=(DB.settings.base||DB.settings.baseLL)?'base':null;let dayKm=0;let missingLeg=false;
     list.forEach(s=>{const c=client(s.clientId);const st=STATUS[s.status]||STATUS.planned;const isAct=s.kind==='activity';const isHome=!!stopAddr(s);const key=isAct?s.id:c?.id;
       const leg=isHome&&prevKey?(DB.legs||{})[prevKey+'|'+key]:null;if(leg)dayKm+=leg.km;
       const gap=(prevEnd!==null&&s.time&&s.status!=='cancel')?mins(s.time)-prevEnd:null;
       let g='';if(gap!==null)g+=gap>=0?`⏱ ${gap} λ κενό`:`⚠️ επικάλυψη ${-gap} λ`;
       if(leg)g+=`${g?' · ':''}🚗 ${prevKey==='base'?'από βάση ':''}~${leg.min} λ / ${leg.km} km${gap!==null&&leg.min>gap?' <b style="color:var(--danger)">— δεν προλαβαίνεις</b>':''}`;
-      else if(isHome&&prevKey&&s.status!=='cancel')g+=`${g?' · ':''}<span class="muted">🚗 ; (πάτα «Υπολόγισε διαδρομή»)</span>`;
+      else if(isHome&&prevKey&&s.status!=='cancel'){missingLeg=true;g+=`${g?' · ':''}<span class="muted">🚗 ${AUTO_ROUTE.has(iso)||!navigator.onLine?'; (πάτα «Υπολόγισε διαδρομή»)':'υπολογίζεται…'}</span>`;}
       if(g)html+=`<div class="gap">${g}</div>`;
       if(s.status!=='cancel'&&s.time)prevEnd=mins(s.time)+(+s.dur||0);
       if(isHome&&s.status!=='cancel')prevKey=key;
       if(isAct){html+=`<div class="card" style="background:var(--bg)"><div class="sess ${s.status}" style="border-left-color:var(--muted)"><div class="time">${esc(s.time||'—')}</div><div style="flex:1">
           <div class="row" style="justify-content:space-between"><b style="font-size:16px">📌 ${esc(s.title)}</b><span class="pill gray">δραστηριότητα</span></div>
           <div class="small muted">${s.dur?s.dur+'λ':''}${s.note?' · '+esc(s.note):''}</div>${s.addr?`<div class="small" style="margin-top:4px">📍 ${esc(s.addr)}</div>`:''}
-          <div class="row noprint" style="gap:6px;margin-top:8px">${s.addr?`<a class="btn sm" target="_blank" href="${navLink(s.addr)}">🧭 Πλοήγηση</a>`:''}${s.status==='planned'?`<a class="btn sm ghost" target="_blank" href="${gcalLink(s)}">📅</a><button class="btn sm ghost" style="color:var(--danger)" onclick="quickCancel('${s.id}')">✕</button>`:`<button class="btn sm ghost" onclick="quickRestore('${s.id}')">↺</button>`}<button class="btn sm ghost" onclick="openSession('${s.id}')">✎</button></div>
+          <div class="row noprint" style="gap:6px;margin-top:8px">${s.addr?`<a class="btn sm" target="_blank" href="${navLink(s.addr,pinLL(s))}">🧭 Πλοήγηση</a>`:''}${s.status==='planned'?`<a class="btn sm ghost" target="_blank" href="${gcalLink(s)}">📅</a><button class="btn sm ghost" style="color:var(--danger)" onclick="quickCancel('${s.id}')">✕</button>`:`<button class="btn sm ghost" onclick="quickRestore('${s.id}')">↺</button>`}<button class="btn sm ghost" onclick="openSession('${s.id}')">✎</button></div>
         </div></div></div>`;return;}
       html+=`<div class="card"><div class="sess ${s.status}">
         <div class="time">${esc(s.time||'—')}</div>
@@ -918,7 +933,7 @@ function renderToday(){
           ${docSummary(s.clientId,2,true)?`<div class="small" style="margin-top:4px;padding:6px 8px;background:var(--brand-soft);border-radius:8px">${docSummary(s.clientId,2,true)}</div>`:''}
           ${(()=>{const q=c?.q;if(!q)return'';const w=[];const red=(q.red||[]).filter(x=>x!=='Όχι');if(red.length)w.push('🚩 '+esc(red.join(', ')));if(q.anticoag==='Ναι')w.push('⚠️ αντιπηκτικά');if(q.allergy==='Ναι')w.push('⚠️ αλλεργίες: '+esc(q.allergyTxt));if(q.preg==='Ναι')w.push('🤰 εγκυμοσύνη');return w.length?`<div class="small" style="margin-top:4px;color:var(--danger)">${w.join(' · ')}</div>`:'';})()}
           <div class="row noprint" style="gap:6px;margin-top:8px">
-            ${c?.addr&&s.type==='home'?`<a class="btn sm" target="_blank" href="${navLink(c.addr)}">🧭 Πλοήγηση</a>`:''}
+            ${c?.addr&&s.type==='home'?`<a class="btn sm" target="_blank" href="${navLink(c.addr,pinLL(c))}">🧭 Πλοήγηση</a>`:''}
             ${c?.phone?`<a class="btn sm" href="tel:${phoneClean(c.phone)}">📞</a><a class="btn sm" href="${msgLink(c.phone,'')}">💬</a>`:''}
             ${s.status==='planned'?`<button class="btn sm primary" onclick="quickDone('${s.id}')">✓ Ολοκληρώθηκε</button>`:''}
             ${billable(s)&&!s.paid?`<button class="btn sm" onclick="quickPaid('${s.id}')">€ Πληρώθηκε</button>`:''}
@@ -928,7 +943,8 @@ function renderToday(){
           </div>
         </div></div></div>`;});
     if(homes.length)html+=`<div class="row noprint" style="justify-content:space-between;margin:-4px 0 12px"><span class="small muted">${dayKm?`🚗 Σύνολο οδήγησης: <b>${Math.round(dayKm*10)/10} km</b>`:''}</span><button class="btn sm" onclick="calcDayRoute('${iso}')">🚗 Υπολόγισε διαδρομή (χρόνοι/km)</button></div>`;
-    $('todayList').innerHTML=html;}
+    $('todayList').innerHTML=html;
+    if(missingLeg&&!AUTO_ROUTE.has(iso)&&navigator.onLine){AUTO_ROUTE.add(iso);setTimeout(()=>calcDayRoute(iso,true),400);}}
   // reminders for tomorrow
   const tom=addDays(iso,1);const tl=sessionsOn(tom).filter(s=>s.status==='planned'&&s.kind!=='activity');
   $('reminderList').innerHTML=tl.length?tl.map(s=>{const c=client(s.clientId);if(!c)return'';const txt=reminderText(c,s);
@@ -1001,7 +1017,8 @@ function saveClient(){const first=$('cFirst').value.trim(),last=$('cLast').value
   if(c.addr!==$('cAddr').value.trim()&&!c.llManual){c.ll=null;c.km=0;dropLegs();}
   {const raw=$('cLL').value.trim();if(raw){const p=parseLL(raw);if(!p)return toast('Δεν κατάλαβα τις συντεταγμένες — δοκίμασε «40.58, 22.95» ή link Google Maps');if(!c.ll||p[0]!==c.ll[0]||p[1]!==c.ll[1]){c.ll=p;c.llManual=true;c.km=0;dropLegs();}}else if(c.llManual){c.ll=null;c.llManual=false;dropLegs();}}
   Object.assign(c,{first,last,phone:$('cPhone').value.trim(),email:$('cEmail').value.trim(),dob:$('cDob').value,status:$('cStatus').value,afm:$('cAfm').value.trim(),travel:+$('cTravel').value||0,addr:$('cAddr').value.trim(),floor:$('cFloor').value.trim(),access:$('cAccess').value.trim(),home:$('cHome').value,start:$('cStart').value,freq:$('cFreq').value,fee:+$('cFee').value||0,ref:$('cRef').value,concern:$('cConcern').value,goals:$('cGoals').value,med:$('cMed').value,emName:$('cEmName').value,emPhone:$('cEmPhone').value,notes:$('cNotes').value});
-  if(!client(id))DB.clients.push(c);save();closeM('mClient');toast('Αποθηκεύτηκε');render();}
+  if(!client(id))DB.clients.push(c);save();closeM('mClient');toast('Αποθηκεύτηκε');render();
+  if(c.addr&&!c.km&&(DB.settings.base||DB.settings.baseLL)&&navigator.onLine)calcDistance(id,true).then(ok=>{if(ok){toast(`📏 ${c.km} km · ~${c.travel} λεπτά από βάση`);render();}});}
 async function deleteClient(){const id=$('cId').value;if(!await ask('Διαγραφή πελάτη ΚΑΙ όλων των συνεδριών του; Δεν αναιρείται.'))return;
   DB.clients=DB.clients.filter(c=>c.id!==id);DB.sessions=DB.sessions.filter(s=>s.clientId!==id);DB.packages=DB.packages.filter(p=>p.clientId!==id);DB.docs=DB.docs.filter(d=>d.clientId!==id);dbAll(id).then(fs=>fs.forEach(f=>dbDel(f.id))).catch(()=>{});save();closeM('mClient');closeM('mView');render();}
 let viewTab='profile';
@@ -1024,7 +1041,7 @@ function viewClient(id,tab){const c=client(id);if(!c)return;viewTab=tab||viewTab
       ${field('Έναρξη',c.start?fmtD(c.start):'')}${field('Συχνότητα',c.freq)}${field('Αμοιβή',c.fee?money(c.fee):'')}${field('Παραπομπή',c.ref)}
     </div>
     ${c.addr?`<div class="card" style="background:var(--brand-soft);border:0"><div class="small muted">Διεύθυνση</div><b>${esc(c.addr)}</b>${c.floor?`<div>${esc(c.floor)}</div>`:''}${c.access?`<div class="small">🅿️ ${esc(c.access)}</div>`:''}${c.home?`<div class="small" style="margin-top:4px">${esc(c.home)}</div>`:''}
-      <div class="row noprint" style="margin-top:8px"><a class="btn sm" target="_blank" href="${navLink(c.addr)}">🧭 Πλοήγηση</a><a class="btn sm" target="_blank" href="${mapsLink(c.addr)}">🗺️ Χάρτης</a>${c.ll?`<a class="btn sm ghost" target="_blank" href="https://www.google.com/maps/search/?api=1&query=${c.ll[0]},${c.ll[1]}" title="Πού την τοποθέτησε ο υπολογισμός αποστάσεων">📍 Έλεγχος σημείου${c.llManual?' (χειροκίνητο)':''}</a>`:''}</div></div>`:''}
+      <div class="row noprint" style="margin-top:8px"><a class="btn sm" target="_blank" href="${navLink(c.addr,pinLL(c))}">🧭 Πλοήγηση</a><a class="btn sm" target="_blank" href="${mapsLink(c.addr)}">🗺️ Χάρτης</a>${c.ll?`<a class="btn sm ghost" target="_blank" href="https://www.google.com/maps/search/?api=1&query=${c.ll[0]},${c.ll[1]}" title="Πού την τοποθέτησε ο υπολογισμός αποστάσεων">📍 Έλεγχος σημείου${c.llManual?' (χειροκίνητο)':''}</a>`:''}</div></div>`:''}
     ${field('Διάγνωση / πάθηση',c.concern)}${field('Στόχοι',c.goals)}${field('Φαρμακευτική αγωγή / ιατρός',c.med)}
     ${c.q?`<div class="card" style="background:var(--brand-soft);border:0"><div class="small muted">📝 Από το ιστορικό</div>${qSummary(c)||'<span class="small muted">—</span>'}<div class="noprint" style="margin-top:6px"><a href="#" onclick="viewClient('${id}','q');return false" class="small">Πλήρες ιστορικό →</a></div></div>`:`<div class="small noprint" style="margin:8px 0">⚠️ Δεν έχει συμπληρωθεί ιστορικό — <a href="#" onclick="openQ('${id}');return false">συμπλήρωση</a></div>`}
     ${docSummary(id,3)?`<div class="card" style="background:var(--brand-soft);border:0"><div class="small muted">📋 Έγγραφα / εξετάσεις</div>${docSummary(id,3)}<div class="noprint" style="margin-top:6px"><a href="#" onclick="viewClient('${id}','files');return false" class="small">Όλα τα έγγραφα →</a></div></div>`:''}
@@ -1288,15 +1305,16 @@ async function calcDistance(cid,quiet){const c=client(cid);if(!DB.settings.base&
 async function calcAll(){saveSettings();const cl=DB.clients.filter(c=>c.addr&&c.status!=='closed');let n=0;for(const c of cl){if(await calcDistance(c.id,true))n++;await new Promise(r=>setTimeout(r,1100));}toast(`Υπολογίστηκαν ${n}/${cl.length}`);render();}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 // Διαδρομή ημέρας: βάση → πελάτης → πελάτης … (ένα κάλεσμα OSRM, cache ανά ζεύγος)
-async function calcDayRoute(iso){const list=sessionsOn(iso).filter(s=>s.status!=='cancel'&&((s.kind==='activity'&&s.addr)||(s.type==='home'&&client(s.clientId)?.addr)));
-  if(!list.length)return toast('Καμία επίσκεψη κατ\' οίκον αυτή τη μέρα');toast('Υπολογισμός διαδρομής…');
+const AUTO_ROUTE=new Set();
+async function calcDayRoute(iso,quiet){const t0=quiet?()=>{}:toast;const list=sessionsOn(iso).filter(s=>s.status!=='cancel'&&((s.kind==='activity'&&s.addr)||(s.type==='home'&&client(s.clientId)?.addr)));
+  if(!list.length)return t0('Καμία επίσκεψη κατ\' οίκον αυτή τη μέρα');t0('Υπολογισμός διαδρομής…');
   try{const pts=[];if(DB.settings.base||DB.settings.baseLL){if(!DB.settings.baseLL){DB.settings.baseLL=await geocode(DB.settings.base);await sleep(1100);}pts.push({key:'base',ll:DB.settings.baseLL});}
     for(const s of list){const o=s.kind==='activity'?s:client(s.clientId);const key=s.kind==='activity'?s.id:o.id;if(!o.ll){o.ll=await geocode(o.addr);await sleep(1100);}if(pts[pts.length-1]?.key!==key)pts.push({key,ll:o.ll});}
-    if(pts.length<2){save();return toast('Χρειάζονται 2+ σημεία — βάλε διεύθυνση βάσης ή δεύτερο πελάτη');}
+    if(pts.length<2){save();return t0('Χρειάζονται 2+ σημεία — βάλε διεύθυνση βάσης ή δεύτερο πελάτη');}
     const coords=pts.map(p=>`${p.ll[1]},${p.ll[0]}`).join(';');const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=false`);const j=await r.json();if(!j.routes?.[0])throw new Error('Δεν βρέθηκε οδική διαδρομή');
     DB.legs=DB.legs||{};j.routes[0].legs.forEach((lg,i)=>{DB.legs[pts[i].key+'|'+pts[i+1].key]={km:Math.round(lg.distance/100)/10,min:Math.max(1,Math.round(lg.duration/60*1.3))};});
-    save();render();toast(`Διαδρομή: ${Math.round(j.routes[0].distance/100)/10} km συνολικά`);}
-  catch(e){save();toast(e.message||'Σφάλμα δικτύου');}}
+    save();render();t0(`Διαδρομή: ${Math.round(j.routes[0].distance/100)/10} km συνολικά`);}
+  catch(e){save();if(quiet)render();toast(e.message||'Σφάλμα δικτύου');}}
 
 /* ---- ΗΜΕΡΟΛΟΓΙΟ: Google Calendar / .ics ---- */
 function icsDT(iso,time){return iso.replace(/-/g,'')+'T'+(time||'09:00').replace(':','')+'00';}
@@ -1324,7 +1342,7 @@ function renderExp(pre){const ms=DB.expenses.filter(e=>e.date.startsWith(pre)).s
   $('expByCat').innerHTML=Object.keys(by).length?Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([c,v])=>`<div class="row" style="justify-content:space-between;margin:4px 0"><span class="small">${esc(c)}</span><span class="small"><b>${money(v)}</b></span></div><div style="height:6px;background:var(--brand-soft);border-radius:3px;margin-bottom:6px"><div style="width:${Math.round(v/mx*100)}%;height:6px;background:var(--brand);border-radius:3px"></div></div>`).join(''):'<div class="empty small">—</div>';}
 
 /* ---- ΡΥΘΜΙΣΕΙΣ ---- */
-function renderSet(){const s=DB.settings;$('sName').value=s.name||'';$('sFee').value=s.fee;$('sDur').value=s.dur;$('sTpl').value=s.tpl||'';$('sMsg').value=s.msg||'sms';
+function renderSet(){const s=DB.settings;$('sName').value=s.name||'';$('sFee').value=s.fee;$('sDur').value=s.dur;$('sTpl').value=s.tpl||'';$('sMsg').value=s.msg||'sms';if($('sNav'))$('sNav').value=navApp();
   $('sNoShow').checked=!!s.noShow;$('sLocalHol').checked=s.localHol!==false;$('sBase').value=s.base||'';$('sBaseLL').value=s.baseManual&&s.baseLL?s.baseLL.join(', '):'';$('sAfm').value=s.afm||'';$('sDoy').value=s.doy||'';$('sProf').value=s.prof||'';$('sLic').value=s.lic||'';$('sSeat').value=s.seat||'';$('sRcptNo').value=s.rcptNo||1;$('sVat').checked=s.vat!==false;
   $('backupInfo').textContent=s.lastBackup?'Τελευταίο export: '+new Date(s.lastBackup).toLocaleString('el-GR'):'Δεν έχει γίνει ποτέ export.';
   const done=DB.sessions.filter(s=>s.status==='done');
@@ -1409,6 +1427,21 @@ const hhmm=d=>`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).
 function renderGreet(){const g=$('greet');if(!g)return;const t=isoOf(new Date());const n=sessionsOn(t).filter(s=>s.status!=='cancel'&&s.kind!=='activity').length;
   const nm=(DB.settings.name||'').split(' ')[0];
   g.innerHTML=`<div><div class="eyebrow">${esc(fmtDL(t))}${nm?' · '+esc(nm):''}</div><h1>${greetWord()}<i>.</i></h1></div><div class="eyebrow">${n?`${n} ${n===1?'επίσκεψη':'επισκέψεις'} σήμερα`:'καμία επίσκεψη σήμερα'}</div>`;}
+/* ---- GPS: πραγματικός χρόνος από τη θέση του κινητού (OSRM, ×1.3 για κίνηση πόλης) ---- */
+const GEO={eta:null,busy:false,perm:'prompt',err:''};
+try{navigator.permissions&&navigator.permissions.query({name:'geolocation'}).then(p=>{GEO.perm=p.state;p.onchange=()=>{GEO.perm=p.state;renderHero();};if(p.state==='granted')renderHero();}).catch(()=>{});}catch(e){}
+function geoPos(){return new Promise((ok,no)=>{if(!navigator.geolocation)return no(new Error('Το κινητό δεν δίνει θέση'));
+  navigator.geolocation.getCurrentPosition(p=>ok([p.coords.latitude,p.coords.longitude]),e=>no(new Error(e.code===1?'Δεν επιτράπηκε η θέση — άνοιξέ τη στις ρυθμίσεις του browser':'Δεν βρέθηκε θέση (GPS)')),{enableHighAccuracy:true,timeout:12000,maximumAge:60000});});}
+async function liveEta(sid,manual){const s=DB.sessions.find(x=>x.id===sid);if(!s||GEO.busy)return;const o=s.kind==='activity'?s:client(s.clientId);
+  const addr=s.kind==='activity'?s.addr:(s.type==='home'?o?.addr:'');if(!addr)return;GEO.busy=true;if(manual)toast('Βρίσκω πού είσαι…');
+  try{const me=await geoPos();if(!o.ll){o.ll=await geocode(addr);save();}const r=await routeKm(me,o.ll);
+    GEO.eta={sid,min:Math.max(1,Math.round(r.min*1.3)),km:Math.round(r.km*10)/10,at:Date.now()};GEO.err='';}
+  catch(e){GEO.err=e.message||'Σφάλμα';if(manual)toast(GEO.err);}finally{GEO.busy=false;renderHero();}}
+// ποια ήταν η προηγούμενη στάση της ίδιας μέρας (για «Φύγε στις» από εκεί και όχι από τη βάση)
+function prevStopLeg(s){const k=stopKey(s);const before=sessionsOn(s.date).filter(x=>x.id!==s.id&&x.status!=='cancel'&&x.time&&s.time&&x.time<s.time&&(x.kind==='activity'?x.addr:(x.type==='home'&&client(x.clientId)?.addr)));
+  const p=before[before.length-1];if(!p)return null;const leg=(DB.legs||{})[stopKey(p)+'|'+k];return leg?{...leg,from:p}:null;}
+function lateMsg(c,min,arr){const me=(DB.settings.name||'').split(' ')[0];return `Γεια σας, θα καθυστερήσω περίπου ${min} λεπτά — φτάνω γύρω στις ${arr}. Συγγνώμη! ${me}`.trim();}
+function onWayMsg(c,arr){const me=(DB.settings.name||'').split(' ')[0];return `Γεια σας, ξεκίνησα — φτάνω γύρω στις ${arr}. ${me}`.trim();}
 function renderHero(){const box=$('hero');if(!box)return;if(todayOffset!==0){box.innerHTML='';return;}
   const t=isoOf(new Date());const day=sessionsOn(t).filter(x=>x.kind!=='activity'&&x.status!=='cancel');const done=day.filter(x=>x.status==='done');
   const earned=done.reduce((a,s)=>a+(+s.fee||0),0),exp=day.reduce((a,s)=>a+(+s.fee||0),0);
@@ -1416,10 +1449,17 @@ function renderHero(){const box=$('hero');if(!box)return;if(todayOffset!==0){box
   const s=nextUp();
   if(!s){box.innerHTML=`<div class="hero"><div class="h-main"><div class="h-eyebrow">Πρόγραμμα</div><div class="h-time" style="font-size:clamp(30px,7vw,42px)">Ελεύθερος<small>καμία επόμενη</small></div><div class="h-sub">Δεν υπάρχει προγραμματισμένη συνεδρία από εδώ και πέρα.</div><div class="h-actions"><button class="btn accent" onclick="openSession()">＋ Νέα συνεδρία</button></div></div>${side}</div>`;return;}
   const c=client(s.clientId),isAct=s.kind==='activity';const start=new Date(s.date+'T'+(s.time||'09:00'));const diff=Math.round((start-Date.now())/60000);
-  const addr=isAct?s.addr:(s.type==='home'?c?.addr:'');const travel=!isAct&&s.type==='home'?(+c?.travel||0):0;
+  const addr=isAct?s.addr:(s.type==='home'?c?.addr:'');
+  const live=GEO.eta&&GEO.eta.sid===s.id&&Date.now()-GEO.eta.at<10*60000?GEO.eta:null;const pl=addr&&!live?prevStopLeg(s):null;
+  const travel=addr?(live?live.min:pl?pl.min:(!isAct?(+c?.travel||0):0)):0;const fromTxt=live?'από εδώ':pl?'από προηγούμενη':'από βάση';
   const leave=new Date(start-(travel+5)*60000);const leaveIn=Math.round((leave-Date.now())/60000);
+  const soon=addr&&s.date===t&&diff>-10&&diff<180;
+  if(soon&&GEO.perm==='granted'&&!GEO.busy&&(!GEO.eta||GEO.eta.sid!==s.id||Date.now()-GEO.eta.at>3*60000))setTimeout(()=>liveEta(s.id),50);
+  const arrive=live?new Date(Date.now()+live.min*60000):null;const lateBy=arrive?Math.round((arrive-start)/60000):0;
   const when=diff<=0?'σε εξέλιξη':diff<60?`σε ${diff}′`:s.date===t?`σε ${Math.floor(diff/60)}ώ ${diff%60}′`:s.date===addDays(t,1)?'αύριο':fmtD(s.date).slice(0,5);
-  const chips=[];if(travel&&diff>0&&diff<24*60)chips.push(leaveIn<=0?`<span class="h-chip late">Φύγε τώρα · ${travel}′ δρόμος</span>`:`<span class="h-chip go">Φύγε ${hhmm(leave)} · ${travel}′ δρόμος</span>`);
+  const chips=[];
+  if(live&&diff>-10)chips.push(lateBy>0?`<span class="h-chip late">📍 Φτάνεις ${hhmm(arrive)} · αργείς ${lateBy}′</span>`:leaveIn<=0?`<span class="h-chip late">📍 Φύγε τώρα · ${travel}′ από εδώ (${live.km} km)</span>`:`<span class="h-chip go">📍 Φύγε ${hhmm(leave)} · ${travel}′ από εδώ (${live.km} km)</span>`);
+  else if(travel&&diff>0&&diff<24*60)chips.push(leaveIn<=0?`<span class="h-chip late">Φύγε τώρα · ${travel}′ ${fromTxt}</span>`:`<span class="h-chip go">Φύγε ${hhmm(leave)} · ${travel}′ ${fromTxt}</span>`);
   chips.push(`<span class="h-chip">${s.dur||DB.settings.dur}′</span>`);if(!isAct)chips.push(`<span class="h-chip">${s.pay==='Πακέτο'?'πακέτο':money(s.fee)}</span>`);
   const pi=c?pkgInfo(c.id):null;if(pi)chips.push(`<span class="h-chip">📦 ${pi.cr} υπόλοιπο</span>`);
   const q=c?.q;if(q){if((q.red||[]).filter(x=>x!=='Όχι').length)chips.push(`<span class="h-chip late">🚩 red flags</span>`);if(q.anticoag==='Ναι')chips.push(`<span class="h-chip late">αντιπηκτικά</span>`);}
@@ -1431,7 +1471,7 @@ function renderHero(){const box=$('hero');if(!box)return;if(todayOffset!==0){box
     ${addr?`<div class="h-sub">📍 ${esc(addr)}${!isAct&&c?.floor?' · '+esc(c.floor):''}</div>`:''}${!isAct&&c?.access?`<div class="h-sub">🅿️ ${esc(c.access)}</div>`:''}
     ${lastPlan?`<div class="h-sub">↺ Τελευταίο πλάνο: ${esc(lastPlan.plan.length>110?lastPlan.plan.slice(0,110)+'…':lastPlan.plan)}</div>`:''}
     <div class="h-chips">${chips.join('')}</div>
-    <div class="h-actions">${addr?`<a class="btn accent" target="_blank" rel="noopener" href="${navLink(addr)}">🧭 Πλοήγηση</a>`:''}${c?.phone?`<a class="btn" href="tel:${phoneClean(c.phone)}">📞 ${esc(c.phone)}</a>`:''}${!isAct&&diff<45?`<button class="btn" onclick="quickDone('${s.id}')">✓ Ολοκληρώθηκε</button>`:''}<button class="btn" onclick="openSession('${s.id}')">✎</button></div>
+    <div class="h-actions">${addr?`<a class="btn accent" target="_blank" rel="noopener" href="${navLink(addr,pinLL(isAct?s:c))}">🧭 Πλοήγηση</a>`:''}${soon&&!live&&GEO.perm!=='denied'?`<button class="btn" onclick="liveEta('${s.id}',true)" ${GEO.busy?'disabled':''}>📍 ${GEO.busy?'Υπολογισμός…':'Πόσο απέχω;'}</button>`:''}${soon&&live?`<button class="btn" onclick="liveEta('${s.id}',true)" title="Ανανέωση από τη θέση σου" ${GEO.busy?'disabled':''}>↻</button>`:''}${!isAct&&c?.phone&&live&&lateBy>0?`<a class="btn" href="${msgLink(c.phone,lateMsg(c,lateBy,hhmm(arrive)))}">💬 Αργώ ${lateBy}′</a>`:!isAct&&c?.phone&&live&&leaveIn<=10&&diff>0?`<a class="btn" href="${msgLink(c.phone,onWayMsg(c,hhmm(arrive)))}">💬 Ξεκίνησα</a>`:''}${c?.phone?`<a class="btn" href="tel:${phoneClean(c.phone)}">📞 ${esc(c.phone)}</a>`:''}${!isAct&&diff<45?`<button class="btn" onclick="quickDone('${s.id}')">✓ Ολοκληρώθηκε</button>`:''}<button class="btn" onclick="openSession('${s.id}')">✎</button></div>
   </div>${side}</div>`;}
 const dayDiff=x=>Math.round((new Date(x+'T00:00')-new Date(isoOf(new Date())+'T00:00'))/864e5);
 function renderWeek(){const box=$('weekStrip');if(!box)return;const iso=addDays(isoOf(new Date()),todayOffset);const d=new Date(iso+'T00:00');const mon=addDays(iso,-((d.getDay()+6)%7));const today=isoOf(new Date());
