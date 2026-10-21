@@ -1975,15 +1975,20 @@ function selBy(existing){const row=$('sByRow'),el=$('sBy');if(row&&!row.hidden&&
 const tInit=n=>(n||'?').split(/\s+/).map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
 function therTag(r){const ts=therapists();if(ts.length<2||therFilter()!=='all')return '';const t=ts.find(x=>x.id===sessBy(r));return t?`<span class="ttag" style="background:${t.color}">${esc(t.name.split(' ')[0])}</span>`:'';}
 function setProf(v){try{localStorage.setItem('hs_prof',v);}catch(e){}closeM('mProf');todayOffset=0;render();const t=therapists().find(x=>x.id===v);toast(v==='all'?'Όλοι οι θεραπευτές':'Προφίλ: '+(t?t.name:''));}
-function renderProf(){const b=$('profBtn');if(!b)return;const ts=therapists(),show=ts.length>1&&isOwner();b.hidden=!show;document.body.classList.toggle('has-prof',show);const f=therFilter();
+function renderProf(){const b=$('profBtn');if(!b)return;const ts=therapists(),show=isOwner()&&ts.length>0&&((CLOUD_ON&&!!CS.practice)||ts.length>1);b.hidden=!show;document.body.classList.toggle('has-prof',show);const f=therFilter();
   const t=ts.find(x=>x.id===f);document.documentElement.style.setProperty('--prof',ts.length>1&&t?t.color:'transparent');if(!show)return;
-  b.innerHTML=t?`<span class="av" style="background:${t.color}">${esc(tInit(t.name))}</span><span class="n">${esc(t.name.split(' ')[0])}</span>`
-    :`<span class="av all" style="--c1:${ts[0].color};--c2:${ts[1].color}">ΟΛ</span><span class="n">Όλοι</span>`;}
+  const one=ts.length===1?ts[0]:null,tt=t||one;
+  b.innerHTML=tt?`<span class="av" style="background:${tt.color}">${esc(tInit(tt.name))}</span><span class="n">${esc(tt.name.split(' ')[0])}</span>`
+    :`<span class="av all" style="--c1:${ts[0].color};--c2:${(ts[1]||ts[0]).color}">ΟΛ</span><span class="n">Όλοι</span>`;}
 function openProf(){const ts=therapists(),f=therFilter(),t0=isoOf(new Date());
   const cnt=id=>DB.sessions.filter(s=>s.date===t0&&s.status!=='cancel'&&s.kind!=='activity'&&(id==='all'||sessBy(s)===id)).length;
   $('profList').innerHTML=ts.map(t=>`<button class="prof-row ${f===t.id?'on':''}" style="--prof:${t.color}" onclick="setProf('${t.id}')"><span class="av" style="background:${t.color};width:38px;height:38px;font-size:13px">${esc(tInit(t.name))}</span><span style="flex:1;min-width:0"><div>${esc(t.name)}${t.id===ME()?' <span class="pill info">εσύ</span>':''}</div><div class="sub">${cnt(t.id)} συνεδρίες σήμερα</div></span>${f===t.id?'✓':''}</button>`).join('')
-    +`<button class="prof-row ${f==='all'?'on':''}" onclick="setProf('all')"><span class="av all" style="--c1:${ts[0]?.color};--c2:${ts[1]?.color};width:38px;height:38px">ΟΛ</span><span style="flex:1"><div>Όλοι μαζί</div><div class="sub">${cnt('all')} συνεδρίες σήμερα · κάθε κάρτα δείχνει ποιος την κάνει</div></span>${f==='all'?'✓':''}</button>`;
+    +(ts.length>1?`<button class="prof-row ${f==='all'?'on':''}" onclick="setProf('all')"><span class="av all" style="--c1:${ts[0]?.color};--c2:${ts[1]?.color};width:38px;height:38px">ΟΛ</span><span style="flex:1"><div>Όλοι μαζί</div><div class="sub">${cnt('all')} συνεδρίες σήμερα · κάθε κάρτα δείχνει ποιος την κάνει</div></span>${f==='all'?'✓':''}</button>`:'')
+    +(CLOUD_ON&&CS.practice?`<div class="card" style="background:var(--brand-soft);margin:6px 0 0"><b>＋ Πρόσθεσε θεραπευτή</b><div class="small" style="margin-top:4px">Ο νέος θεραπευτής ανοίγει το <b>healing-steps.vercel.app</b>, φτιάχνει λογαριασμό και γράφει αυτόν τον κωδικό πρόσκλησης. Μετά εμφανίζεται εδώ ως προφίλ.</div>
+      <div class="row" style="margin-top:8px"><span style="font:700 22px var(--f-mono);letter-spacing:.12em">${esc(CS.practice.invite_code||'')}</span><button class="btn sm" onclick="copyInvite()">Αντιγραφή</button>${navigator.share?`<button class="btn sm" onclick="shareInvite()">Αποστολή</button>`:''}</div>
+      <div class="small muted" style="margin-top:6px">${(CS.members||[]).length}/${CS.practice.max_members||3} χρήστες</div></div>`:'');
   openM('mProf');}
+function shareInvite(){const c=CS.practice?.invite_code||'';navigator.share({title:'Healing Steps',text:`Μπες στο Healing Steps: άνοιξε https://healing-steps.vercel.app , φτιάξε λογαριασμό και γράψε τον κωδικό πρόσκλησης ${c}`}).catch(()=>{});}
 const _openSession=openSession;openSession=function(id,dateIso,clientId){_openSession(id,dateIso,clientId);const row=$('sByRow');if(!row)return;const ts=therapists(),show=ts.length>1&&isOwner();row.hidden=!show;
   if(show){const s=id?DB.sessions.find(x=>x.id===id):null;$('sBy').innerHTML=ts.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');$('sBy').value=s?sessBy(s)||defBy():defBy();}};
 function setStaff(id,k,v){const st=Object.assign({},staffMap());st[id]=Object.assign({},st[id],{[k]:v});DB.settings.staff=st;save();render();renderTeam();}
