@@ -344,7 +344,7 @@ td .btn{padding:5px 10px;font-size:12px} td.right{white-space:nowrap}
 .sync-dot[data-s="ok"]{background:var(--ok)} .sync-dot[data-s="syncing"],.sync-dot[data-s="connecting"],.sync-dot[data-s="pending"]{background:var(--brand-2);animation:pulse 1.2s ease-in-out infinite}
 .sync-dot[data-s="offline"]{background:var(--muted)} .sync-dot[data-s="error"]{background:var(--danger)}
 .auth{position:fixed;inset:0;z-index:110;display:none;align-items:center;justify-content:center;overflow:auto;padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background-color:var(--bg);background-image:radial-gradient(var(--dot) 1px,transparent 1.3px);background-size:22px 22px}
-.auth.open{display:flex}
+.auth.open{display:flex;flex-direction:column}
 .auth-card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);border-radius:26px;padding:24px;box-shadow:var(--shadow-lift)}
 .auth-card .logo{height:52px;border-radius:13px;box-shadow:0 8px 18px -10px rgba(0,0,0,.6)}
 .auth-card h1{font-size:34px;letter-spacing:-.045em;margin:16px 0 4px;line-height:1.05}
@@ -1713,7 +1713,7 @@ const _renderSet=renderSet;renderSet=function(){_renderSet();renderCloud();};
 async function cloudBoot(){if(!CLOUD_ON){const d=$('syncDot');if(d)d.hidden=true;return;}setSync('connecting');
   sb.auth.onAuthStateChange((ev,session)=>{if(ev==='PASSWORD_RECOVERY')setTimeout(recoverPassword,300);});
   let session=null;try{({data:{session}}=await sb.auth.getSession());}catch(e){}
-  if(!session){const meta=lsGet(META_KEY);showAuth(meta?'login':'signup');if(meta?.email)$('authEmail').value=meta.email;return;}
+  if(!session){setSync('local');const meta=lsGet(META_KEY);showAuth(meta?'login':'signup');if(meta?.email)$('authEmail').value=meta.email;return;}
   await afterLogin(session.user);}
 
 /* ================= INIT ================= */
