@@ -793,6 +793,19 @@ td .btn{padding:5px 10px;font-size:12px} td.right{white-space:nowrap}
   </div>
 </div>
 
+<!-- ===== MODAL: ΕΛΕΓΧΟΣ ΜΕΤΑΦΟΡΑΣ ===== -->
+<div class="modal-bg" id="mMig" onclick="if(event.target===this)closeM('mMig')">
+  <div class="modal" style="max-width:600px">
+    <div class="head"><h2>🔎 Έλεγχος μεταφοράς</h2><button class="btn sm ghost" onclick="closeM('mMig')">✕</button></div>
+    <p class="small muted" style="margin:0 0 8px">Για κάθε πελάτη της παλιάς εφαρμογής διάλεξε αν θα <b>ενωθεί</b> με κάποιον που υπάρχει ήδη (π.χ. από το ημερολόγιο), αν θα μπει ως <b>νέος</b> ή αν θα <b>παραλειφθεί</b>. Οι προτάσεις βασίζονται στο όνομα.</p>
+    <div class="check"><input type="checkbox" id="migFin" checked onchange="migSum()"><label for="migFin" style="margin:0">Και τα οικονομικά: πληρωμές από συνεδρίες που έχουν γίνει, προπληρωμές, έξοδα, στοιχεία αποδείξεων</label></div>
+    <div class="row" style="gap:6px;margin:6px 0 8px;flex-wrap:wrap"><button class="btn sm" onclick="migAll('suggest')">Οι προτάσεις</button><button class="btn sm" onclick="migAll('new')">Όλοι νέοι</button><button class="btn sm ghost" onclick="migAll('skip')">Παράλειψη όλων</button></div>
+    <div id="migList" style="max-height:46vh;overflow:auto;margin:0 -4px;padding:0 4px"></div>
+    <div id="migSum" class="small" style="margin-top:10px;padding:10px 12px;background:var(--brand-soft);border-radius:12px"></div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn" onclick="closeM('mMig')">Άκυρο</button><button class="btn primary" id="migGo" onclick="migCommit()">Μεταφορά</button></div>
+  </div>
+</div>
+
 <!-- ===== MODAL: ΕΙΣΑΓΩΓΗ GOOGLE CALENDAR ===== -->
 <div class="modal-bg" id="mIcs" onclick="if(event.target===this)closeM('mIcs')">
   <div class="modal" style="max-width:560px">
@@ -1551,12 +1564,7 @@ async function exportJSON(){DB.settings.lastBackup=new Date().toISOString();save
   const b=new Blob([JSON.stringify(out)],{type:'application/json'});saveFile(`therapy-backup-${isoOf(new Date())}.json`,b);toast('Έγινε export');renderSet();}
 function importJSON(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>importData(r.result);r.readAsText(f);inp.value='';}
 async function importData(txt){try{const d=JSON.parse(txt);if(!d.clients||!d.sessions)throw 0;
-  if(typeof CS!=='undefined'&&CS.practice){const files=d.files||[];const r0=mergeClientsHealth(d,true);
-    if(!r0.joined&&!r0.added&&!r0.docs&&!files.length)return toast('Δεν βρέθηκαν πελάτες στο αρχείο');
-    if(!await ask(mergeMsg(r0,files.length),{title:'Εισαγωγή από την παλιά εφαρμογή',ok:'Μεταφορά',danger:false}))return;
-    CS.noGcalUntil=Date.now()+20000;const r=mergeClientsHealth(d,false);save();
-    for(const x of files){if((DB.files||[]).some(m=>m.id===x.id))continue;try{const bin=atob(x.b64);const u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);await dbPut({...x,clientId:r.map[x.clientId]||x.clientId,b64:undefined,blob:new Blob([u8],{type:x.type})});}catch(e){console.warn(e);}}
-    toast(`Μεταφέρθηκαν ${r.joined+r.added} πελάτες (${r.joined} ενώθηκαν) · ${r.q} ιστορικά · ${r.docs} έγγραφα`);render();return;}
+  if(typeof CS!=='undefined'&&CS.practice){if(!(d.clients||[]).length)return toast('Δεν βρέθηκαν πελάτες στο αρχείο');openMig({src:'json',d,files:d.files||[]});return;}
   if(!await ask(`Το αρχείο έχει ${d.clients.length} πελάτες, ${d.sessions.length} συνεδρίες${d.files?`, ${d.files.length} αρχεία`:''}. Θα ΑΝΤΙΚΑΤΑΣΤΗΣΕΙ τα τρέχοντα δεδομένα. Συνέχεια;`))return;
   const files=d.files||[];delete d.files;delete d.demo;DB=d;if(!DB.packages)DB.packages=[];if(!DB.docs)DB.docs=[];if(!DB.expenses)DB.expenses=[];DB.settings=Object.assign(load().settings,d.settings||{});save();applyTheme();
   for(const x of files){const bin=atob(x.b64);const u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);await dbPut({...x,b64:undefined,blob:new Blob([u8],{type:x.type})});}
@@ -1877,13 +1885,57 @@ function mergeMsg(r,files){return `Περνάνε ΜΟΝΟ στοιχεία πε
 async function uploadFilesMapped(map){let fs=[];try{fs=await _dbAll();}catch(e){}let n=0;for(const f of fs){if(map[f.clientId])f.clientId=map[f.clientId];if((DB.files||[]).some(m=>m.id===f.id))continue;try{await dbPut(f);n++;}catch(e){console.warn(e);}}if(n)toast(`Ανέβηκαν ${n} αρχεία`);}
 function legacyPending(){const L=lsGet(LEGACY_KEY);if(!L||!L.db||L.done)return null;const r=mergeClientsHealth(L.db,true);return (r.joined||r.added||r.docs)?{L,d:L.db,r}:null;}
 async function offerLegacy(manual){if(!CS.practice)return;const P=legacyPending();if(!P){if(manual)toast('Δεν βρέθηκαν παλιά δεδομένα σε αυτή τη συσκευή');renderImport();return;}
-  const ok=await ask(mergeMsg(P.r),{title:'Μεταφορά από την παλιά εφαρμογή',ok:'Μεταφορά',cancel:'Όχι τώρα',danger:false});if(!ok){renderImport();return;}
-  CS.noGcalUntil=Date.now()+20000;const r=mergeClientsHealth(P.d,false);save();lsSet(LEGACY_KEY,{...P.L,done:true,doneAt:new Date().toISOString()});render();
-  toast(`Μεταφέρθηκαν ${r.joined+r.added} πελάτες (${r.joined} ενώθηκαν) · ${r.q} ιστορικά · ${r.docs} έγγραφα`);
-  try{await uploadFilesMapped(r.map);}catch(e){}renderImport();
-  if(/github\.io$/.test(location.hostname)&&await ask('Η μεταφορά έγινε. Από εδώ και πέρα άνοιγε την εφαρμογή από το healing-steps.vercel.app (και πρόσθεσέ τη στην αρχική οθόνη).',{title:'Έτοιμο',ok:'Άνοιγμα τώρα',cancel:'Αργότερα',danger:false}))location.href='https://healing-steps.vercel.app/';}
+  if(!manual&&!await ask(`Βρέθηκαν δεδομένα της παλιάς εφαρμογής σε αυτή τη συσκευή (${(P.d.clients||[]).length} πελάτες). Θέλεις να τα ελέγξεις και να τα μεταφέρεις;`,{title:'Μεταφορά από την παλιά εφαρμογή',ok:'Έλεγχος',cancel:'Όχι τώρα',danger:false})){renderImport();return;}
+  openMig({src:'legacy',d:P.d,L:P.L,files:null});}
+/* ---- έλεγχος μεταφοράς: ο χρήστης διαλέγει ενώσεις ---- */
+let MIG=null;
+const migPast=()=>{const t=isoOf(new Date());return s=>s&&s.date&&s.date<t&&(s.status==='done'||s.status==='noshow');};
+function openMig(o){const L=(o.d.clients||[]).filter(x=>x&&x.id);MIG={...o,rows:L.map(lc=>{const ex=matchExisting(lc,L);return {lc,sug:ex?ex.id:'new',sel:ex?ex.id:'new'};})};
+  MIG.rows.sort((a,b)=>(a.sel==='new')-(b.sel==='new')||cname(a.lc).localeCompare(cname(b.lc),'el'));migRender();openM('mMig');}
+function migAll(v){MIG.rows.forEach(r=>r.sel=v==='suggest'?r.sug:v);migRender();}
+function migRender(){const ex=DB.clients.slice().sort((a,b)=>(fromCal(b)-fromCal(a))||cname(a).localeCompare(cname(b),'el'));const isPast=migPast();
+  $('migList').innerHTML=MIG.rows.map((r,i)=>{const lc=r.lc,ns=(MIG.d.sessions||[]).filter(s=>s.clientId===lc.id).length,np=(MIG.d.sessions||[]).filter(s=>s.clientId===lc.id&&isPast(s)).length;
+    const tgt=r.sel!=='new'&&r.sel!=='skip'?client(r.sel):null;
+    return `<div class="list-item" style="display:block"><div class="row" style="justify-content:space-between;gap:8px"><b style="min-width:0;overflow-wrap:anywhere">${esc(cname(lc))}</b><span class="small muted" style="white-space:nowrap">${lc.q?'🩺 ιστορικό · ':''}${np} ${np===1?'πληρωμή':'πληρωμές'}</span></div>
+      <div class="small muted">${esc(lc.phone||'χωρίς τηλέφωνο')}${lc.addr?' · '+esc(lc.addr.length>36?lc.addr.slice(0,36)+'…':lc.addr):''}${r.sug!=='new'&&r.sel===r.sug?' · <span style="color:var(--ok)">πρόταση ένωσης</span>':''}</div>
+      <select style="margin-top:6px" onchange="MIG.rows[${i}].sel=this.value;migRender()">
+        <option value="new" ${r.sel==='new'?'selected':''}>＋ Νέος πελάτης</option><option value="skip" ${r.sel==='skip'?'selected':''}>— Παράλειψη (δεν μεταφέρεται)</option>
+        <optgroup label="Ένωση με υπάρχοντα">${ex.map(c=>`<option value="${c.id}" ${r.sel===c.id?'selected':''}>${fromCal(c)?'📅 ':''}${esc(cname(c))}${c.phone?' · '+esc(c.phone):''}</option>`).join('')}</optgroup></select>
+      ${tgt?`<div class="small" style="margin-top:4px">↳ θα ενωθεί με <b>${esc(cname(tgt))}</b>${fromCal(tgt)?' (από το ημερολόγιο)':''} — ${DB.sessions.filter(s=>s.clientId===tgt.id).length} συνεδρίες</div>`:''}</div>`;}).join('')||'<div class="empty small">Δεν βρέθηκαν πελάτες.</div>';
+  migSum();}
+function migPlan(){const sel={};MIG.rows.forEach(r=>sel[r.lc.id]=r.sel);const map={};MIG.rows.forEach(r=>{if(r.sel!=='skip')map[r.lc.id]=r.sel==='new'?r.lc.id:r.sel;});
+  const fin=$('migFin').checked,isPast=migPast(),d=MIG.d;const have=new Set(DB.sessions.map(s=>s.id)),day=new Set(DB.sessions.map(s=>s.clientId+'|'+s.date));
+  const ss=fin?(d.sessions||[]).filter(s=>isPast(s)&&map[s.clientId]&&!have.has(s.id)&&!day.has(map[s.clientId]+'|'+s.date)):[];
+  const dupDay=fin?(d.sessions||[]).filter(s=>isPast(s)&&map[s.clientId]&&!have.has(s.id)&&day.has(map[s.clientId]+'|'+s.date)).length:0;
+  const pk=fin?(d.packages||[]).filter(x=>x&&map[x.clientId]&&!DB.packages.some(y=>y.id===x.id)):[];
+  const exs=fin?(d.expenses||[]).filter(x=>x&&!DB.expenses.some(y=>y.id===x.id)):[];
+  const docs=(d.docs||[]).filter(x=>x&&map[x.clientId]&&!DB.docs.some(y=>y.id===x.id));
+  return {map,fin,ss,dupDay,pk,exs,docs,joined:MIG.rows.filter(r=>r.sel!=='new'&&r.sel!=='skip').length,added:MIG.rows.filter(r=>r.sel==='new').length,skipped:MIG.rows.filter(r=>r.sel==='skip').length};}
+function migSum(){const P=migPlan();const inc=P.ss.reduce((a,s)=>a+(+s.fee||0),0)+P.pk.reduce((a,x)=>a+(+x.amount||0),0),out=P.exs.reduce((a,x)=>a+(+x.amount||0),0);
+  $('migSum').innerHTML=`<b>Θα γίνουν:</b> ${P.joined} ενώσεις · ${P.added} νέοι · ${P.skipped} παραλείπονται · ${P.docs.length} έγγραφα${P.fin?`<br><b>Οικονομικά:</b> ${P.ss.length} πληρωμένες/περασμένες συνεδρίες · ${P.pk.length} προπληρωμές · ${P.exs.length} έξοδα (έσοδα ${money(inc)}, έξοδα ${money(out)})${P.dupDay?`<br><span class="muted">${P.dupDay} περασμένες συνεδρίες παραλείπονται γιατί υπάρχει ήδη συνεδρία του ίδιου πελάτη την ίδια μέρα.</span>`:''}`:''}<br><span class="muted">Μελλοντικές συνεδρίες δεν μεταφέρονται — το πρόγραμμα από το ημερολόγιο μένει ίδιο.</span>`;
+  $('migGo').disabled=!(P.joined||P.added);}
+function mergeInto(ex,lc){const def=+DB.settings.fee||50,cal=fromCal(ex),oldFee=+ex.fee;
+  if(cal&&(lc.first||lc.last)){ex.first=lc.first||ex.first;ex.last=lc.last||'';}
+  for(const k in lc){if(k==='id'||k==='created'||(cal&&(k==='first'||k==='last')))continue;const v=lc[k];if(v===undefined||v===null||v===''||(Array.isArray(v)&&!v.length))continue;const cur=ex[k];
+    if(k==='notes'){if(!cur||cur==='Από Google Calendar')ex.notes=v;else if(!String(cur).includes(v))ex.notes=v+'\n'+cur;continue;}
+    if(k==='fee'){if(!+cur||(cal&&+cur===def))ex.fee=v;continue;}
+    if(cur===undefined||cur===null||cur===''||(Array.isArray(cur)&&!cur.length))ex[k]=v;}
+  if(+ex.fee!==oldFee){const t=isoOf(new Date());DB.sessions.forEach(s=>{if(s.clientId===ex.id&&s.status==='planned'&&s.date>=t&&+s.fee===oldFee&&s.pay!=='Πακέτο')s.fee=+ex.fee;});}}
+async function migCommit(){const P=migPlan();if(!P.joined&&!P.added)return;CS.noGcalUntil=Date.now()+30000;
+  MIG.rows.forEach(r=>{if(r.sel==='skip')return;if(r.sel==='new'){if(!client(r.lc.id))DB.clients.push(r.lc);}else{const ex=client(r.sel);if(ex)mergeInto(ex,r.lc);}});
+  P.docs.forEach(x=>DB.docs.push({...x,clientId:P.map[x.clientId]}));
+  if(P.fin){P.ss.forEach(s=>DB.sessions.push({...s,clientId:P.map[s.clientId]}));P.pk.forEach(x=>DB.packages.push({...x,clientId:P.map[x.clientId]}));P.exs.forEach(x=>DB.expenses.push({...x}));
+    const s=MIG.d.settings||{};['afm','doy','prof','lic','seat','name'].forEach(k=>{if(s[k]&&!DB.settings[k])DB.settings[k]=s[k];});if(+s.rcptNo>+(DB.settings.rcptNo||1))DB.settings.rcptNo=+s.rcptNo;if(s.vat===false&&DB.settings.vat!==false&&!DB.settings.afm)DB.settings.vat=false;}
+  save();closeM('mMig');render();
+  toast(`Μεταφορά: ${P.joined} ενώσεις, ${P.added} νέοι${P.fin?` · ${P.ss.length} πληρωμές, ${P.pk.length} προπληρωμές, ${P.exs.length} έξοδα`:''}`);
+  const skip=new Set(MIG.rows.filter(r=>r.sel==='skip').map(r=>r.lc.id));
+  if(MIG.src==='legacy'){lsSet(LEGACY_KEY,{...MIG.L,done:true,doneAt:new Date().toISOString()});
+    let fs=[];try{fs=await _dbAll();}catch(e){}let n=0;for(const f of fs){if(skip.has(f.clientId))continue;if(P.map[f.clientId])f.clientId=P.map[f.clientId];if((DB.files||[]).some(m=>m.id===f.id))continue;try{await dbPut(f);n++;}catch(e){}}if(n)toast(`Ανέβηκαν ${n} αρχεία`);}
+  else for(const x of (MIG.files||[])){if(skip.has(x.clientId)||(DB.files||[]).some(m=>m.id===x.id))continue;try{const bin=atob(x.b64);const u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);await dbPut({...x,clientId:P.map[x.clientId]||x.clientId,b64:undefined,blob:new Blob([u8],{type:x.type})});}catch(e){console.warn(e);}}
+  const src=MIG.src;MIG=null;renderImport();
+  if(src==='legacy'&&/github\.io$/.test(location.hostname)&&await ask('Η μεταφορά έγινε. Από εδώ και πέρα άνοιγε την εφαρμογή από το healing-steps.vercel.app (και πρόσθεσέ τη στην αρχική οθόνη).',{title:'Έτοιμο',ok:'Άνοιγμα τώρα',cancel:'Αργότερα',danger:false}))location.href='https://healing-steps.vercel.app/';}
 function renderImport(){const b=$('legacyBox');if(!b)return;const P=CLOUD_ON&&CS.practice?legacyPending():null;
-  b.innerHTML=P?`<div class="banner card" style="margin:0 0 10px;padding:10px 12px"><b>Βρέθηκαν δεδομένα της παλιάς εφαρμογής</b><div class="small muted">${P.r.joined+P.r.added} πελάτες · ${P.r.q} ιατρικά ιστορικά · ${P.r.docs} έγγραφα (χωρίς συνεδρίες/οικονομικά)</div><button class="btn sm primary" style="margin-top:8px" onclick="offerLegacy(true)">Μεταφορά στο κοινό ιατρείο</button></div>`:'';}
+  b.innerHTML=P?`<div class="banner card" style="margin:0 0 10px;padding:10px 12px"><b>Βρέθηκαν δεδομένα της παλιάς εφαρμογής</b><div class="small muted">${(P.d.clients||[]).length} πελάτες · ${P.r.q} ιατρικά ιστορικά · ${(P.d.expenses||[]).length} έξοδα</div><button class="btn sm primary" style="margin-top:8px" onclick="offerLegacy(true)">🔎 Έλεγχος & μεταφορά</button></div>`:'';}
 function h53(str){let h1=0xdeadbeef,h2=0x41c6ce57;for(let i=0;i<str.length;i++){const ch=str.charCodeAt(i);h1=Math.imul(h1^ch,2654435761);h2=Math.imul(h2^ch,1597334677);}
   h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);return (4294967296*(2097151&h2)+(h1>>>0)).toString(36);}
 const splitKey=k=>{const i=k.indexOf('|');return [k.slice(0,i),k.slice(i+1)];};
