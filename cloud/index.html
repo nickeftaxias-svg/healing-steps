@@ -494,6 +494,7 @@ td .btn{padding:5px 10px;font-size:12px} td.right{white-space:nowrap}
 <section class="view" id="v-set">
   <h2>Ρυθμίσεις</h2>
   <div class="card" id="cloudCard" hidden></div>
+  <div class="card" id="gcalCard" hidden></div>
   <div class="card">
     <h3>Θεραπευτής</h3>
     <label>Όνομα</label><input id="sName" placeholder="π.χ. Αλέξανδρος …">
@@ -1597,7 +1598,7 @@ function h53(str){let h1=0xdeadbeef,h2=0x41c6ce57;for(let i=0;i<str.length;i++){
 const splitKey=k=>{const i=k.indexOf('|');return [k.slice(0,i),k.slice(i+1)];};
 function syncSettings(){const st={};for(const k in DB.settings)if(!LOCAL_SETTINGS.includes(k))st[k]=DB.settings[k];return st;}
 function snapshot(){const m={};SYNC_KINDS.forEach(k=>(DB[k]||[]).forEach(r=>{if(r&&r.id)m[k+'|'+r.id]=JSON.stringify(r);}));m['settings|settings']=JSON.stringify(syncSettings());m['meta|legs']=JSON.stringify(DB.legs||{});return m;}
-function saveMeta(){lsSet(META_KEY,{user_id:CS.user?.id,email:CS.user?.email,practice:CS.practice&&{id:CS.practice.id,name:CS.practice.name,invite_code:CS.practice.invite_code},role:CS.role,cursor:CS.cursor});lsSet(BASE_KEY,CS.base);}
+function saveMeta(){lsSet(META_KEY,{user_id:CS.user?.id,email:CS.user?.email,practice:CS.practice&&{id:CS.practice.id,name:CS.practice.name,invite_code:CS.practice.invite_code,gcal_id:CS.practice.gcal_id},role:CS.role,cursor:CS.cursor});lsSet(BASE_KEY,CS.base);}
 const SYNC_L={local:'Μόνο σε αυτή τη συσκευή',connecting:'Σύνδεση…',syncing:'Συγχρονισμός…',ok:'Συγχρονισμένο',pending:'Αλλαγές προς αποστολή',offline:'Εκτός σύνδεσης — θα σταλούν μόλις βρεθεί internet',error:'Σφάλμα συγχρονισμού'};
 function setSync(s,err){CS.status=s;CS.err=err||'';if(s==='ok')CS.last=new Date();const d=$('syncDot');if(d){d.hidden=!CLOUD_ON;d.dataset.s=s;d.title=SYNC_L[s]+(err?': '+err:'');}const t=$('cloudStatus');if(t)t.textContent=SYNC_L[s]+(s==='ok'&&CS.last?' · '+hhmm(CS.last):'')+(err?' — '+err:'');}
 
@@ -1609,7 +1610,7 @@ async function cloudPush(){if(!CS.practice)return;if(CS.busy){clearTimeout(CS.pu
     for(const key in snap){const hv=h53(snap[key]);if(CS.base[key]!==hv){const [kind,id]=splitKey(key);rows.push({practice_id:CS.practice.id,kind,id,data:JSON.parse(snap[key]),deleted:false});hashes[key]=hv;}}
     for(const key in CS.base)if(!(key in snap)){const [kind,id]=splitKey(key);rows.push({practice_id:CS.practice.id,kind,id,data:null,deleted:true});}
     if(rows.length){setSync('syncing');for(let i=0;i<rows.length;i+=300){const {error}=await sb.from('hs_records').upsert(rows.slice(i,i+300),{onConflict:'practice_id,kind,id'});if(error)throw error;}
-      rows.forEach(r=>{const key=r.kind+'|'+r.id;if(r.deleted)delete CS.base[key];else CS.base[key]=hashes[key];});saveMeta();}
+      rows.forEach(r=>{const key=r.kind+'|'+r.id;if(r.deleted)delete CS.base[key];else CS.base[key]=hashes[key];});saveMeta();gcalQueue(rows);}
     setSync('ok');}catch(e){console.warn('push',e);setSync(navigator.onLine?'error':'offline',navigator.onLine?(e.message||''):'');}finally{CS.busy=false;}}
 
 /* ---- λήψη αλλαγών (realtime + κάθε λεπτό + όταν ανοίγει η εφαρμογή) ---- */
@@ -1682,7 +1683,7 @@ async function setupJoin(){const code=$('setupCode').value.trim();if(!code)retur
 
 function freshDB(){const d=load();d.settings.pin=DB.settings.pin;d.settings.theme=DB.settings.theme;return d;}
 async function afterLogin(user){CS.user=user;const meta=lsGet(META_KEY);let pr=null,role=null;
-  try{const {data,error}=await sb.from('hs_members').select('role,practice:hs_practices(id,name,invite_code,max_members)').eq('user_id',user.id).maybeSingle();if(error)throw error;if(data){pr=data.practice;role=data.role;}}
+  try{const {data,error}=await sb.from('hs_members').select('role,practice:hs_practices(id,name,invite_code,max_members,gcal_id,gcal_error)').eq('user_id',user.id).maybeSingle();if(error)throw error;if(data){pr=data.practice;role=data.role;}}
   catch(e){if(meta&&meta.user_id===user.id&&meta.practice){hideAuth();CS.practice=meta.practice;CS.role=meta.role;CS.cursor=meta.cursor;CS.base=lsGet(BASE_KEY)||{};setSync('offline');startSync(false);return;}
     showAuth('login');return authMsg(AUTH_ERR(e),1);}
   if(!pr)return showSetup();hideAuth();await enterPractice(pr,role,meta);}
@@ -1693,9 +1694,9 @@ async function enterPractice(pr,role,meta){CS.practice=pr;CS.role=role;const sam
     if(!count&&localHas){const ok=await ask(`Ανέβασμα των δεδομένων αυτής της συσκευής στο ιατρείο «${pr.name}»;\n\n${DB.clients.length} πελάτες · ${DB.sessions.length} συνεδρίες · ${DB.expenses.length} έξοδα`,{title:'Πρώτος συγχρονισμός',ok:'Ανέβασμα',cancel:'Ξεκίνημα από μηδέν',danger:false});
       if(ok){saveMeta();await uploadLocalFiles();}else{DB=freshDB();_saveLocal();}}
     else{if(localHas&&!meta){lsSet('therapy_app_v1_backup_'+isoOf(new Date()),DB);toast('Τα παλιά τοπικά δεδομένα κρατήθηκαν ως αντίγραφο');}DB=freshDB();_saveLocal();}}
-  saveMeta();render();await startSync(!same);}
+  saveMeta();render();await startSync(!same);if(CS.role==='owner')gcalCheck(true);}
 async function loadMembers(){if(!CS.practice)return;try{const {data}=await sb.from('hs_members').select('user_id,role,email').eq('practice_id',CS.practice.id).order('created_at');CS.members=data||[];
-    const {data:p}=await sb.from('hs_practices').select('id,name,invite_code,max_members').eq('id',CS.practice.id).maybeSingle();if(p){CS.practice=p;saveMeta();}}catch(e){}renderCloud();}
+    const {data:p}=await sb.from('hs_practices').select('id,name,invite_code,max_members,gcal_id,gcal_error').eq('id',CS.practice.id).maybeSingle();if(p){CS.practice=p;saveMeta();}}catch(e){}renderCloud();}
 async function newInvite(){try{const {data,error}=await sb.rpc('hs_new_invite_code',{p:CS.practice.id});if(error)throw error;CS.practice.invite_code=data;saveMeta();renderCloud();toast('Νέος κωδικός πρόσκλησης');}catch(e){toast(AUTH_ERR(e));}}
 async function removeMember(uid){const m=CS.members.find(x=>x.user_id===uid);if(!await ask(`Αφαίρεση του ${m?.email||'χρήστη'} από το ιατρείο;`))return;
   const {error}=await sb.from('hs_members').delete().eq('practice_id',CS.practice.id).eq('user_id',uid);toast(error?AUTH_ERR(error):'Αφαιρέθηκε');loadMembers();}
@@ -1716,7 +1717,36 @@ function renderCloud(){const box=$('cloudCard');if(!box)return;box.hidden=!CLOUD
       <div class="row" style="margin-top:8px"><span style="font:700 22px var(--f-mono);letter-spacing:.12em">${esc(CS.practice.invite_code||'')}</span><button class="btn sm" onclick="copyInvite()">Αντιγραφή</button><button class="btn sm ghost" onclick="newInvite()">Νέος κωδικός</button></div></div>`:''}
     <div class="row" style="margin-top:12px"><button class="btn" onclick="syncNow()">↻ Συγχρονισμός τώρα</button><button class="btn danger" onclick="cloudSignOut()">Αποσύνδεση</button></div>`;
   setSync(CS.status,CS.err);}
-const _renderSet=renderSet;renderSet=function(){_renderSet();renderCloud();};
+const _renderSet=renderSet;renderSet=function(){_renderSet();renderCloud();renderGcal();};
+
+/* ---- Google Calendar: κοινό ημερολόγιο ιατρείου (γράφει ο server, άμεσα σε κάθε αλλαγή) ---- */
+const GC={q:{s:new Set(),c:new Set()},t:null,info:null,busy:false};
+const GC_ERR={missing_sa:'Δεν έχει μπει ακόμα το κλειδί Google στο Supabase.',no_calendar:'Δεν έχει οριστεί ημερολόγιο.',calendar_not_shared:'Το ημερολόγιο δεν βρέθηκε ή δεν έχει κοινοποιηθεί στον λογαριασμό της εφαρμογής.',read_only:'Η κοινοποίηση είναι μόνο για προβολή — άλλαξέ τη σε «Αλλαγές σε συμβάντα».',not_member:'Δεν είσαι μέλος του ιατρείου.'};
+const gcErr=e=>GC_ERR[e]||e||'';
+function gcalQueue(rows){if(!CS.practice?.gcal_id)return;rows.forEach(r=>{if(r.kind==='sessions')GC.q.s.add(r.id);else if(r.kind==='clients')GC.q.c.add(r.id);});
+  if(!GC.q.s.size&&!GC.q.c.size)return;clearTimeout(GC.t);GC.t=setTimeout(gcalFlush,800);}
+async function gcalFlush(){if(GC.busy){GC.t=setTimeout(gcalFlush,1500);return;}const sessions=[...GC.q.s],clients=[...GC.q.c];GC.q.s.clear();GC.q.c.clear();if(!sessions.length&&!clients.length)return;
+  GC.busy=true;try{const {data,error}=await sb.functions.invoke('hs-gcal',{body:{action:'sync',practice_id:CS.practice.id,sessions,clients}});if(error)throw error;
+    if(data&&!data.ok){CS.practice.gcal_error=(data.errors&&data.errors[0])||data.error;renderGcal();}else if(CS.practice.gcal_error){CS.practice.gcal_error=null;renderGcal();}}
+  catch(e){console.warn('gcal',e);sessions.forEach(x=>GC.q.s.add(x));clients.forEach(x=>GC.q.c.add(x));GC.t=setTimeout(gcalFlush,60000);}finally{GC.busy=false;}}
+async function gcalCall(action){const {data,error}=await sb.functions.invoke('hs-gcal',{body:{action,practice_id:CS.practice.id}});if(error){let m=error.message;try{const j=await error.context.json();m=j.error||m;}catch(x){}throw new Error(m);}return data;}
+async function gcalCheck(silent){if(!CS.practice)return;try{GC.info=await gcalCall('status');CS.practice.gcal_error=GC.info.ok?null:GC.info.error;if(!silent)toast(GC.info.ok?`Συνδέθηκε με «${GC.info.summary}»`:gcErr(GC.info.error));}catch(e){GC.info={ok:false,error:e.message};if(!silent)toast(e.message);}renderGcal();}
+async function gcalSave(){const id=($('gcalId').value||'').trim().replace(/^.*[?&]src=/,'').replace(/&.*$/,'');const v=decodeURIComponent(id);
+  const {error}=await sb.from('hs_practices').update({gcal_id:v||null}).eq('id',CS.practice.id);if(error)return toast(AUTH_ERR(error));CS.practice.gcal_id=v||null;saveMeta();
+  if(!v){GC.info=null;renderGcal();return toast('Το ημερολόγιο αφαιρέθηκε');}await gcalCheck(false);if(GC.info?.ok)gcalFull();}
+async function gcalFull(){const b=$('gcalFullBtn');if(b)b.disabled=true;toast('Πέρασμα συνεδριών στο Google…');try{const r=await gcalCall('full');toast(r.ok?`Στο Google: ${r.upserted} συνεδρίες${r.deleted?` · ${r.deleted} ακυρωμένες αφαιρέθηκαν`:''}`:gcErr(r.error||(r.errors||[])[0]));CS.practice.gcal_error=r.ok?null:(r.error||(r.errors||[])[0]);}
+  catch(e){toast(e.message);}finally{if(b)b.disabled=false;renderGcal();}}
+function copySa(){const t=GC.info?.sa_email||'';try{navigator.clipboard.writeText(t).then(()=>toast('Αντιγράφηκε'),()=>toast(t));}catch(e){toast(t);}}
+function renderGcal(){const box=$('gcalCard');if(!box)return;box.hidden=!CLOUD_ON||!CS.practice;if(box.hidden)return;
+  const owner=CS.role==='owner',id=CS.practice.gcal_id||'',err=CS.practice.gcal_error,ok=id&&!err;
+  box.innerHTML=`<div class="row" style="justify-content:space-between"><h3 style="margin:0">📅 Google Calendar</h3><span class="pill ${ok?'ok':id?'warn':'gray'}">${ok?'συνδεδεμένο':id?'θέλει έλεγχο':'ανενεργό'}</span></div>
+    <p class="small muted" style="margin:6px 0 0">Κάθε νέα συνεδρία, αλλαγή ή ακύρωση περνάει αμέσως σε ένα κοινό ημερολόγιο «Healing Steps» στο Google. Το βλέπει όποιος το έχει κοινοποιημένο (π.χ. ο Alex στο κινητό του).</p>
+    ${err?`<div class="small" style="color:var(--danger);margin-top:8px">⚠️ ${esc(gcErr(err))}</div>`:''}
+    ${owner?`<label for="gcalId">ID ημερολογίου Google</label><input id="gcalId" value="${esc(id)}" placeholder="xxxxxxxx@group.calendar.google.com" autocomplete="off">
+      ${GC.info?.sa_email?`<div class="small muted" style="margin-top:8px">Κοινοποίησε το ημερολόγιο σε αυτό το email με «Αλλαγές σε συμβάντα»:<div class="row" style="margin-top:4px"><code style="font:12px var(--f-mono);overflow-wrap:anywhere">${esc(GC.info.sa_email)}</code><button class="btn sm" onclick="copySa()">Αντιγραφή</button></div></div>`:''}
+      <div class="row" style="margin-top:12px"><button class="btn primary" onclick="gcalSave()">Αποθήκευση & έλεγχος</button>${id?`<button class="btn" id="gcalFullBtn" onclick="gcalFull()">↻ Πέρασμα όλων</button>`:''}<button class="btn ghost" onclick="gcalCheck(false)">Έλεγχος</button></div>`
+    :`<div class="small" style="margin-top:8px">${id?'Το ημερολόγιο του ιατρείου είναι ενεργό.':'Ο διαχειριστής του ιατρείου δεν έχει ορίσει ακόμα ημερολόγιο.'}</div>`}`;}
+
 
 async function cloudBoot(){if(!CLOUD_ON){const d=$('syncDot');if(d)d.hidden=true;return;}setSync('connecting');
   sb.auth.onAuthStateChange((ev,session)=>{if(ev==='PASSWORD_RECOVERY')setTimeout(recoverPassword,300);});
