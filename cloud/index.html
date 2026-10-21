@@ -1551,12 +1551,12 @@ async function exportJSON(){DB.settings.lastBackup=new Date().toISOString();save
   const b=new Blob([JSON.stringify(out)],{type:'application/json'});saveFile(`therapy-backup-${isoOf(new Date())}.json`,b);toast('Έγινε export');renderSet();}
 function importJSON(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>importData(r.result);r.readAsText(f);inp.value='';}
 async function importData(txt){try{const d=JSON.parse(txt);if(!d.clients||!d.sessions)throw 0;
-  if(typeof CS!=='undefined'&&CS.practice){const files=d.files||[];
-    const nc=d.clients.filter(c=>!client(c.id)).length,ns=d.sessions.filter(s=>!DB.sessions.some(x=>x.id===s.id)).length;
-    if(!nc&&!ns&&!files.length)return toast('Όλα όσα έχει το αρχείο υπάρχουν ήδη');
-    if(!await ask(`Θα προστεθούν στο κοινό ιατρείο:\n${nc} πελάτες · ${ns} συνεδρίες${files.length?` · ${files.length} αρχεία`:''}\n\nΔεν σβήνεται τίποτα από όσα υπάρχουν.`,{title:'Εισαγωγή αρχείου',ok:'Προσθήκη',danger:false}))return;
-    const n=mergeData(d);save();for(const x of files){if((DB.files||[]).some(m=>m.id===x.id))continue;try{const bin=atob(x.b64);const u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);await dbPut({...x,b64:undefined,blob:new Blob([u8],{type:x.type})});}catch(e){console.warn(e);}}
-    toast(`Προστέθηκαν ${n.clients} πελάτες και ${n.sessions} συνεδρίες`);render();return;}
+  if(typeof CS!=='undefined'&&CS.practice){const files=d.files||[];const r0=mergeClientsHealth(d,true);
+    if(!r0.joined&&!r0.added&&!r0.docs&&!files.length)return toast('Δεν βρέθηκαν πελάτες στο αρχείο');
+    if(!await ask(mergeMsg(r0,files.length),{title:'Εισαγωγή από την παλιά εφαρμογή',ok:'Μεταφορά',danger:false}))return;
+    CS.noGcalUntil=Date.now()+20000;const r=mergeClientsHealth(d,false);save();
+    for(const x of files){if((DB.files||[]).some(m=>m.id===x.id))continue;try{const bin=atob(x.b64);const u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);await dbPut({...x,clientId:r.map[x.clientId]||x.clientId,b64:undefined,blob:new Blob([u8],{type:x.type})});}catch(e){console.warn(e);}}
+    toast(`Μεταφέρθηκαν ${r.joined+r.added} πελάτες (${r.joined} ενώθηκαν) · ${r.q} ιστορικά · ${r.docs} έγγραφα`);render();return;}
   if(!await ask(`Το αρχείο έχει ${d.clients.length} πελάτες, ${d.sessions.length} συνεδρίες${d.files?`, ${d.files.length} αρχεία`:''}. Θα ΑΝΤΙΚΑΤΑΣΤΗΣΕΙ τα τρέχοντα δεδομένα. Συνέχεια;`))return;
   const files=d.files||[];delete d.files;delete d.demo;DB=d;if(!DB.packages)DB.packages=[];if(!DB.docs)DB.docs=[];if(!DB.expenses)DB.expenses=[];DB.settings=Object.assign(load().settings,d.settings||{});save();applyTheme();
   for(const x of files){const bin=atob(x.b64);const u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);await dbPut({...x,b64:undefined,blob:new Blob([u8],{type:x.type})});}
@@ -1851,16 +1851,39 @@ function mergeData(d){const n={};['clients','sessions','packages','docs','expens
     if(cur===undefined||cur===null||cur===''||(k in SET_DEF&&cur===SET_DEF[k]))DB.settings[k]=v;}
   if(+s.rcptNo>+(DB.settings.rcptNo||1))DB.settings.rcptNo=+s.rcptNo;
   if(d.legs){DB.legs=Object.assign({},d.legs,DB.legs||{});}return n;}
-function legacyPending(){const L=lsGet(LEGACY_KEY);if(!L||!L.db||L.done)return null;const d=L.db;
-  const c=(d.clients||[]).filter(x=>!client(x.id)).length,s=(d.sessions||[]).filter(x=>!DB.sessions.some(y=>y.id===x.id)).length;return (c||s)?{L,d,c,s}:null;}
+const nameKey=(a,b)=>nrm((a||'')+' '+(b||''));
+const fromCal=c=>/Google Calendar/.test(c.notes||'');
+function matchExisting(lc,L){if(client(lc.id))return client(lc.id);
+  const k1=nameKey(lc.first,lc.last),k2=nameKey(lc.last,lc.first);
+  let m=DB.clients.filter(c=>{const k=nameKey(c.first,c.last);return k&&(k===k1||k===k2);});if(m.length===1)return m[0];if(m.length>1)return m.find(fromCal)||m[0];
+  const ln=nrm(lc.last),fn=nrm(lc.first);const uniq=(f,v)=>v&&L.filter(x=>nrm(x[f])===v).length===1;
+  m=DB.clients.filter(c=>fromCal(c)&&!nrm(c.last)&&((uniq('last',ln)&&nrm(c.first)===ln)||(uniq('first',fn)&&nrm(c.first)===fn&&!DB.clients.some(o=>o!==c&&nrm(o.first)===fn))));
+  return m.length===1?m[0]:null;}
+// μόνο πελάτες (με το ιατρικό ιστορικό τους) και έγγραφα — ΟΧΙ συνεδρίες, πακέτα, έξοδα, ρυθμίσεις
+function mergeClientsHealth(d,dry){const def=+DB.settings.fee||50;const r={joined:0,added:0,q:0,docs:0,map:{}};const L=(d.clients||[]).filter(x=>x&&x.id);
+  for(const lc of L){const ex=matchExisting(lc,L);
+    if(ex){r.map[lc.id]=ex.id;r.joined++;if(lc.q&&!ex.q)r.q++;if(dry)continue;const cal=fromCal(ex),oldFee=+ex.fee;
+      if(cal&&(lc.first||lc.last)){ex.first=lc.first||ex.first;ex.last=lc.last||'';}
+      for(const k in lc){if(cal&&(k==='first'||k==='last'))continue;if(k==='id'||k==='created')continue;const v=lc[k];if(v===undefined||v===null||v===''||(Array.isArray(v)&&!v.length))continue;const cur=ex[k];
+        if(k==='notes'){if(!cur||cur==='Από Google Calendar')ex.notes=v;else if(!String(cur).includes(v))ex.notes=v+'\n'+cur;continue;}
+        if(k==='fee'){if(!+cur||(fromCal(ex)&&+cur===def))ex.fee=v;continue;}
+        if(cur===undefined||cur===null||cur===''||(Array.isArray(cur)&&!cur.length))ex[k]=v;}
+      // οι μελλοντικές συνεδρίες που ήρθαν με την προεπιλεγμένη αμοιβή παίρνουν την πραγματική του πελάτη (ημέρες/ώρες δεν αλλάζουν)
+      if(+ex.fee!==oldFee){const t=isoOf(new Date());DB.sessions.forEach(s=>{if(s.clientId===ex.id&&s.status==='planned'&&s.date>=t&&+s.fee===oldFee&&s.pay!=='Πακέτο')s.fee=+ex.fee;});}}
+    else{r.map[lc.id]=lc.id;r.added++;if(lc.q)r.q++;if(!dry)DB.clients.push(lc);}}
+  const ids=new Set(DB.docs.map(x=>x.id));for(const doc of (d.docs||[])){if(!doc||!doc.id||ids.has(doc.id))continue;r.docs++;if(!dry)DB.docs.push({...doc,clientId:r.map[doc.clientId]||doc.clientId});}
+  return r;}
+function mergeMsg(r,files){return `Περνάνε ΜΟΝΟ στοιχεία πελατών και ιατρικά δεδομένα:\n• ${r.joined} πελάτες ενώνονται με όσους υπάρχουν ήδη (π.χ. από το ημερολόγιο)\n• ${r.added} νέοι πελάτες\n• ιατρικό ιστορικό: ${r.q} · έγγραφα: ${r.docs}${files?` · αρχεία: ${files}`:''}\n\nΣυνεδρίες, πρόγραμμα και οικονομικά της παλιάς εφαρμογής δεν μεταφέρονται — το ημερολόγιο μένει όπως είναι.`;}
+async function uploadFilesMapped(map){let fs=[];try{fs=await _dbAll();}catch(e){}let n=0;for(const f of fs){if(map[f.clientId])f.clientId=map[f.clientId];if((DB.files||[]).some(m=>m.id===f.id))continue;try{await dbPut(f);n++;}catch(e){console.warn(e);}}if(n)toast(`Ανέβηκαν ${n} αρχεία`);}
+function legacyPending(){const L=lsGet(LEGACY_KEY);if(!L||!L.db||L.done)return null;const r=mergeClientsHealth(L.db,true);return (r.joined||r.added||r.docs)?{L,d:L.db,r}:null;}
 async function offerLegacy(manual){if(!CS.practice)return;const P=legacyPending();if(!P){if(manual)toast('Δεν βρέθηκαν παλιά δεδομένα σε αυτή τη συσκευή');renderImport();return;}
-  const ok=await ask(`Βρέθηκαν δεδομένα από την παλιά εφαρμογή σε αυτή τη συσκευή:\n${P.c} πελάτες · ${P.s} συνεδρίες${(P.d.expenses||[]).length?` · ${(P.d.expenses||[]).length} έξοδα`:''}\n\nΝα προστεθούν στο κοινό ιατρείο «${CS.practice.name}»; Δεν σβήνεται τίποτα από όσα υπάρχουν ήδη.`,{title:'Μεταφορά από την παλιά εφαρμογή',ok:'Μεταφορά',cancel:'Όχι τώρα',danger:false});
-  if(!ok){renderImport();return;}
-  const n=mergeData(P.d);save();lsSet(LEGACY_KEY,{...P.L,done:true,doneAt:new Date().toISOString()});render();toast(`Μεταφέρθηκαν ${n.clients} πελάτες και ${n.sessions} συνεδρίες`);
-  try{await uploadLocalFiles();}catch(e){}renderImport();
+  const ok=await ask(mergeMsg(P.r),{title:'Μεταφορά από την παλιά εφαρμογή',ok:'Μεταφορά',cancel:'Όχι τώρα',danger:false});if(!ok){renderImport();return;}
+  CS.noGcalUntil=Date.now()+20000;const r=mergeClientsHealth(P.d,false);save();lsSet(LEGACY_KEY,{...P.L,done:true,doneAt:new Date().toISOString()});render();
+  toast(`Μεταφέρθηκαν ${r.joined+r.added} πελάτες (${r.joined} ενώθηκαν) · ${r.q} ιστορικά · ${r.docs} έγγραφα`);
+  try{await uploadFilesMapped(r.map);}catch(e){}renderImport();
   if(/github\.io$/.test(location.hostname)&&await ask('Η μεταφορά έγινε. Από εδώ και πέρα άνοιγε την εφαρμογή από το healing-steps.vercel.app (και πρόσθεσέ τη στην αρχική οθόνη).',{title:'Έτοιμο',ok:'Άνοιγμα τώρα',cancel:'Αργότερα',danger:false}))location.href='https://healing-steps.vercel.app/';}
 function renderImport(){const b=$('legacyBox');if(!b)return;const P=CLOUD_ON&&CS.practice?legacyPending():null;
-  b.innerHTML=P?`<div class="banner card" style="margin:0 0 10px;padding:10px 12px"><b>Βρέθηκαν δεδομένα της παλιάς εφαρμογής</b><div class="small muted">${P.c} πελάτες · ${P.s} συνεδρίες σε αυτή τη συσκευή</div><button class="btn sm primary" style="margin-top:8px" onclick="offerLegacy(true)">Μεταφορά στο κοινό ιατρείο</button></div>`:'';}
+  b.innerHTML=P?`<div class="banner card" style="margin:0 0 10px;padding:10px 12px"><b>Βρέθηκαν δεδομένα της παλιάς εφαρμογής</b><div class="small muted">${P.r.joined+P.r.added} πελάτες · ${P.r.q} ιατρικά ιστορικά · ${P.r.docs} έγγραφα (χωρίς συνεδρίες/οικονομικά)</div><button class="btn sm primary" style="margin-top:8px" onclick="offerLegacy(true)">Μεταφορά στο κοινό ιατρείο</button></div>`:'';}
 function h53(str){let h1=0xdeadbeef,h2=0x41c6ce57;for(let i=0;i<str.length;i++){const ch=str.charCodeAt(i);h1=Math.imul(h1^ch,2654435761);h2=Math.imul(h2^ch,1597334677);}
   h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);return (4294967296*(2097151&h2)+(h1>>>0)).toString(36);}
 const splitKey=k=>{const i=k.indexOf('|');return [k.slice(0,i),k.slice(i+1)];};
@@ -1985,6 +2008,16 @@ function renderCloud(){const box=$('cloudCard');if(!box)return;box.hidden=!CLOUD
     <div class="row" style="margin-top:12px"><button class="btn" onclick="syncNow()">↻ Συγχρονισμός τώρα</button><button class="btn danger" onclick="cloudSignOut()">Αποσύνδεση</button></div>`;
   setSync(CS.status,CS.err);}
 const _renderSet=renderSet;renderSet=function(){_renderSet();renderCloud();renderGcal();renderImport();renderTeam();};
+const SET_IDS=['sName','sFee','sDur','sTpl','sMsg','sNoShow','sLocalHol','sBase','sBaseLL','sAfm','sDoy','sProf','sLic','sSeat','sRcptNo','sVat'];
+// όσο γράφεις σε πεδίο ρυθμίσεων, ο συγχρονισμός δεν το ξαναγεμίζει
+const _renderSet2=renderSet;renderSet=function(){const a=document.activeElement;if(a&&SET_IDS.includes(a.id)){renderCloud();renderGcal();renderImport();renderTeam();return;}_renderSet2();};
+const _saveSettings=saveSettings;saveSettings=async function(){const old=+DB.settings.fee||0;_saveSettings();const nf=+DB.settings.fee||0;if(!old||nf===old)return;
+  const today=isoOf(new Date());const cl=DB.clients.filter(c=>+c.fee===old);const ids=new Set(cl.map(c=>c.id));
+  const ss=DB.sessions.filter(s=>s.status==='planned'&&s.date>=today&&+s.fee===old&&s.pay!=='Πακέτο'&&ids.has(s.clientId));
+  if(!cl.length&&!ss.length)return;
+  if(!await ask(`Η αμοιβή άλλαξε από ${money(old)} σε ${money(nf)}.\n\nΝα αλλάξει και σε:\n• ${cl.length} πελάτες που έχουν ${money(old)}\n• ${ss.length} μελλοντικές συνεδρίες τους\n\nΟι συνεδρίες που έχουν ήδη γίνει δεν αλλάζουν.`,{title:'Νέα αμοιβή',ok:'Αλλαγή παντού',cancel:'Μόνο για τους νέους',danger:false}))return;
+  cl.forEach(c=>c.fee=nf);ss.forEach(s=>s.fee=nf);save();render();toast(`Νέα αμοιβή σε ${cl.length} πελάτες και ${ss.length} συνεδρίες`);};
+SET_IDS.forEach(id=>{const e=$(id);if(e)e.addEventListener('change',()=>saveSettings());});
 
 /* ================= ΛΕΙΤΟΥΡΓΙΑ ΠΕΛΑΤΗ: το tablet δείχνει μόνο τη φόρμα του πελάτη ================= */
 const KIOSK_KEY='hs_kiosk';
@@ -2075,7 +2108,7 @@ const _renderAll=render;render=function(){renderProf();_renderAll();};
 const GC={q:{s:new Set(),c:new Set()},t:null,info:null,busy:false};
 const GC_ERR={missing_sa:'Δεν έχει μπει ακόμα το κλειδί Google στο Supabase.',no_calendar:'Δεν έχει οριστεί ημερολόγιο.',calendar_not_shared:'Το ημερολόγιο δεν βρέθηκε ή δεν έχει κοινοποιηθεί στον λογαριασμό της εφαρμογής.',read_only:'Η κοινοποίηση είναι μόνο για προβολή — άλλαξέ τη σε «Αλλαγές σε συμβάντα».',not_member:'Δεν είσαι μέλος του ιατρείου.'};
 const gcErr=e=>GC_ERR[e]||e||'';
-function gcalQueue(rows){if(!CS.practice?.gcal_id)return;rows.forEach(r=>{if(r.kind==='sessions')GC.q.s.add(r.id);else if(r.kind==='clients')GC.q.c.add(r.id);});
+function gcalQueue(rows){if(!CS.practice?.gcal_id||(CS.noGcalUntil&&Date.now()<CS.noGcalUntil))return;rows.forEach(r=>{if(r.kind==='sessions')GC.q.s.add(r.id);else if(r.kind==='clients')GC.q.c.add(r.id);});
   if(!GC.q.s.size&&!GC.q.c.size)return;clearTimeout(GC.t);GC.t=setTimeout(gcalFlush,800);}
 async function gcalFlush(){if(GC.busy){GC.t=setTimeout(gcalFlush,1500);return;}const sessions=[...GC.q.s],clients=[...GC.q.c];GC.q.s.clear();GC.q.c.clear();if(!sessions.length&&!clients.length)return;
   GC.busy=true;try{const {data,error}=await sb.functions.invoke('hs-gcal',{body:{action:'sync',practice_id:CS.practice.id,sessions,clients}});if(error)throw error;
