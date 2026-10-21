@@ -88,6 +88,17 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 header.top .logo{height:40px;width:auto;border-radius:11px;display:block;box-shadow:0 6px 14px -8px rgba(0,0,0,.55)}
 header.top .t{font-weight:800;font-size:16px;letter-spacing:-.02em;line-height:1.1}
 header.top .t i{font-style:normal;color:var(--brand-2)}
+.prof{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:3px 10px 3px 3px;font:700 13px var(--f-sans);color:var(--text);cursor:pointer;max-width:150px;min-width:0;box-shadow:var(--shadow)}
+.prof .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.prof::after{content:"";width:6px;height:6px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-2px);flex:none}
+.av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font:800 11px var(--f-sans);flex:none;letter-spacing:.02em}
+.av.all{background:conic-gradient(var(--c1,#2a8cf0) 0 50%,var(--c2,#7c5cff) 0)}
+.ttag{display:inline-flex;align-items:center;margin-left:6px;padding:1px 7px;border-radius:999px;color:#fff;font:700 10.5px/1.6 var(--f-sans);vertical-align:2px;white-space:nowrap}
+.prof-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--text);font:600 15px var(--f-sans);cursor:pointer;margin-bottom:8px}
+.prof-row.on{border-color:var(--prof,var(--brand-2));box-shadow:0 0 0 3px color-mix(in srgb,var(--prof,var(--brand-2)) 22%,transparent)}
+.prof-row .sub{font:500 12px var(--f-sans);color:var(--muted)}
+header.top{border-bottom:2px solid var(--prof,transparent)}
+@media (max-width:440px){.has-prof .hdr-lockup>span{display:none}.prof{max-width:118px}}
 header.top .s{font:500 11px/1.3 var(--f-mono);color:var(--muted);letter-spacing:.04em}
 .hdr-btn{background:var(--card);border:1px solid var(--line);color:var(--text)}
 .kbd{font:600 10.5px var(--f-mono);border:1px solid var(--line);border-radius:6px;padding:1px 5px;color:var(--muted);background:var(--card-2)}
@@ -254,7 +265,7 @@ th,td{text-align:left;padding:9px 6px;border-bottom:1px solid var(--line)} th{fo
 /* 3D ring */
 .ring{--p:0;width:118px;height:118px;border-radius:50%;position:relative;transform:rotateX(22deg);transform-style:preserve-3d;flex:none}
 .ring::before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(var(--brand-2) calc(var(--p)*1turn),rgba(255,255,255,.12) 0);-webkit-mask:radial-gradient(circle,transparent 56%,#000 57%);mask:radial-gradient(circle,transparent 56%,#000 57%);box-shadow:0 0 0 1px rgba(255,255,255,.04)}
-.ring::after{content:"";position:absolute;inset:0;border-radius:50%;transform:translateZ(-10px);background:conic-gradient(#b8651a calc(var(--p)*1turn),rgba(0,0,0,.4) 0);-webkit-mask:radial-gradient(circle,transparent 56%,#000 57%);mask:radial-gradient(circle,transparent 56%,#000 57%);filter:blur(.3px)}
+.ring::after{content:"";position:absolute;inset:0;border-radius:50%;transform:translateZ(-10px);background:conic-gradient(#0b3f99 calc(var(--p)*1turn),rgba(0,0,0,.4) 0);-webkit-mask:radial-gradient(circle,transparent 56%,#000 57%);mask:radial-gradient(circle,transparent 56%,#000 57%);filter:blur(.3px)}
 .ring .ring-face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;transform:translateZ(8px)}
 .ring b{font:700 26px/1 var(--f-mono);letter-spacing:-.04em} .ring b span{font-size:15px;color:var(--hero-muted)}
 .ring small{font:600 9.5px var(--f-mono);text-transform:uppercase;letter-spacing:.1em;color:var(--hero-muted);margin-top:4px}
@@ -401,6 +412,7 @@ td .btn{padding:5px 10px;font-size:12px} td.right{white-space:nowrap}
 <header class="top">
   <div class="row" style="gap:10px;flex-wrap:nowrap;min-width:0"><div style="min-width:0"><div class="t" id="hdrTitle"><span class="lockup hdr-lockup" role="img" aria-label="healing steps"><svg class="sym" viewBox="0 0 106 55" aria-hidden="true"><rect x="0" y="33" width="68" height="22" rx="11" fill="currentColor"/><rect x="38" y="0" width="68" height="22" rx="11" fill="#2a8cf0"/></svg><span>healing steps.</span></span><span class="sync-dot" id="syncDot" hidden onclick="go('set')"></span></div><div class="s" id="hdrSub"></div></div></div>
   <div class="row" style="gap:6px;flex-wrap:nowrap">
+    <button class="prof" id="profBtn" hidden onclick="openProf()" aria-label="Αλλαγή προφίλ"></button>
     <button class="btn sm hdr-btn" onclick="openCmd()" title="Αναζήτηση (Ctrl/⌘ K)" aria-label="Αναζήτηση"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="kbd hide-sm">⌘K</span></button>
     <button class="btn icon hdr-btn" onclick="toggleTheme()" title="Θέμα" aria-label="Αλλαγή θέματος"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor"/></svg></button>
     <button class="btn icon primary" onclick="openSession()" title="Νέα συνεδρία" aria-label="Νέα συνεδρία"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -495,6 +507,7 @@ td .btn{padding:5px 10px;font-size:12px} td.right{white-space:nowrap}
 <section class="view" id="v-set">
   <h2>Ρυθμίσεις</h2>
   <div class="card" id="cloudCard" hidden></div>
+  <div class="card" id="teamCard" hidden></div>
   <div class="card" id="gcalCard" hidden></div>
   <div class="card" id="importCard">
     <h3 style="margin:0">📥 Μεταφορά & εισαγωγή</h3>
@@ -640,6 +653,7 @@ td .btn{padding:5px 10px;font-size:12px} td.right{white-space:nowrap}
     <div class="head"><h2 id="mSessTitle">Νέα συνεδρία</h2><button class="btn sm ghost" onclick="closeM('mSess')">✕</button></div>
     <input type="hidden" id="sId">
     <div class="chips" style="margin-bottom:6px"><span class="chip on" id="kindSess" onclick="setKind('session')">🧑‍⚕️ Συνεδρία</span><span class="chip" id="kindAct" onclick="setKind('activity')">📌 Δραστηριότητα (γυμναστήριο, προσωπικό, προμήθειες…)</span></div>
+    <div id="sByRow" hidden><label for="sBy">Θεραπευτής</label><select id="sBy"></select></div>
     <div id="sessFields">
     <label>Πελάτης *</label><select id="sClient" onchange="sessClientChanged()"></select>
     <div id="sDocsInfo" class="small" style="display:none;margin-top:6px;padding:8px 10px;background:var(--brand-soft);border-radius:10px"></div>
@@ -738,6 +752,15 @@ td .btn{padding:5px 10px;font-size:12px} td.right{white-space:nowrap}
       <button class="btn danger ghost" id="dDelete" onclick="deleteDoc()" style="display:none">Διαγραφή</button>
       <div class="row"><button class="btn" onclick="closeM('mDoc')">Άκυρο</button><button class="btn primary" onclick="saveDoc()">Αποθήκευση</button></div>
     </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: ΠΡΟΦΙΛ ===== -->
+<div class="modal-bg" id="mProf" onclick="if(event.target===this)closeM('mProf')">
+  <div class="modal" style="max-width:420px">
+    <div class="head"><h2>Προφίλ</h2><button class="btn sm ghost" onclick="closeM('mProf')">✕</button></div>
+    <p class="small muted" style="margin:0 0 10px">Ό,τι βλέπεις — πρόγραμμα, οικονομικά, έξοδα — αφορά το προφίλ που διαλέγεις. Οι πελάτες είναι κοινοί.</p>
+    <div id="profList"></div>
   </div>
 </div>
 
@@ -906,7 +929,7 @@ function render(){$('hdrSub').textContent=DB.settings.name||'';
 /* ---- ΣΗΜΕΡΑ ---- */
 let todayOffset=0;
 function shiftToday(n){todayOffset+=n;render();}
-function sessionsOn(iso){return DB.sessions.filter(s=>s.date===iso).sort((a,b)=>(a.time||'').localeCompare(b.time||''));}
+function sessionsOn(iso){return DB.sessions.filter(s=>s.date===iso&&inView(s)).sort((a,b)=>(a.time||'').localeCompare(b.time||''));}
 function renderToday(){
   const iso=addDays(isoOf(new Date()),todayOffset);
   $('todayTitle').textContent=(todayOffset===0?'Σήμερα · ':todayOffset===1?'Αύριο · ':'')+fmtDL(iso);
@@ -915,7 +938,7 @@ function renderToday(){
   const homes=list.filter(s=>s.status!=='cancel'&&stopAddr(s));
   const income=active.filter(s=>s.status==='done').reduce((a,s)=>a+(+s.fee||0),0);
   const expected=active.reduce((a,s)=>a+(+s.fee||0),0);
-  const unpaidAll=DB.sessions.filter(s=>billable(s)&&!s.paid).length;
+  const unpaidAll=DB.sessions.filter(s=>billable(s)&&!s.paid&&inView(s)).length;
   $('todayKpi').innerHTML=`<div class="card"><div class="v">${active.length}</div><div class="l">συνεδρίες</div></div>
    <div class="card"><div class="v">${homes.length}</div><div class="l">επισκέψεις κατ' οίκον</div></div>
    <div class="card"><div class="v">${money(income)}</div><div class="l">έσοδα ημέρας / ${money(expected)}</div></div>
@@ -955,7 +978,7 @@ function renderToday(){
       html+=`<div class="card"><div class="sess ${s.status}">
         <div class="time">${esc(s.time||'—')}</div>
         <div style="flex:1">
-          <div class="row" style="justify-content:space-between"><b style="font-size:16px;cursor:pointer" onclick="viewClient('${s.clientId}')">${esc(cname(c))}</b><span class="pill ${st[1]}">${st[0]}</span></div>
+          <div class="row" style="justify-content:space-between"><b style="font-size:16px;cursor:pointer" onclick="viewClient('${s.clientId}')">${esc(cname(c))}</b>${therTag(s)}<span class="pill ${st[1]}">${st[0]}</span></div>
           <div class="small muted">${TYPE[s.type]||''} · ${s.dur||'?'}λ · ${s.pay==='Πακέτο'?'προπληρωμένη':money(s.fee)} ${s.paid?'<span class="pill ok">πληρωμένη</span>':s.status==='done'?'<span class="pill warn">απλήρωτη</span>':''}${(()=>{const pi=c?pkgInfo(c.id):null;return pi?` <span class="pill ${pi.expired?'warn':'info'}">📦 ${pi.cr}${pi.n?'/'+pi.n:''} υπόλοιπο${pi.expired?' — έληξε':''}</span>`:'';})()}</div>
           ${c?.addr&&s.type==='home'?`<div class="small" style="margin-top:4px">📍 ${esc(c.addr)}${c.floor?' · '+esc(c.floor):''}</div>${c.access?`<div class="small muted">🅿️ ${esc(c.access)}</div>`:''}`:''}
           ${s.plan?`<div class="small" style="margin-top:4px">📌 Προηγ. πλάνο: ${esc(s.plan)}</div>`:''}
@@ -1015,7 +1038,7 @@ function renderCal(){
   $('calDayList').innerHTML=list.length?list.map(s=>{const c=client(s.clientId);const st=STATUS[s.status]||STATUS.planned;
     if(s.kind==='activity')return `<div class="card clickable" style="background:var(--bg)" onclick="openSession('${s.id}')"><div class="sess ${s.status}" style="border-left-color:var(--muted)"><div class="time">${esc(s.time||'—')}</div><div style="flex:1"><b>📌 ${esc(s.title)}</b><div class="small muted">${s.dur?s.dur+'λ':''}${s.addr?' · 📍 '+esc(s.addr):''}</div></div></div></div>`;
     return `<div class="card clickable" onclick="openSession('${s.id}')"><div class="sess ${s.status}"><div class="time">${esc(s.time||'—')}</div>
-      <div style="flex:1"><div class="row" style="justify-content:space-between"><b>${esc(cname(c))}</b><span class="pill ${st[1]}">${st[0]}</span></div>
+      <div style="flex:1"><div class="row" style="justify-content:space-between"><b>${esc(cname(c))}${therTag(s)}</b><span class="pill ${st[1]}">${st[0]}</span></div>
       <div class="small muted">${TYPE[s.type]||''} · ${s.dur}λ · ${money(s.fee)}${s.paid?' · πληρωμένη':''}</div></div><div class="row" style="gap:4px">${s.status==='planned'?`<a class="btn sm ghost" target="_blank" href="${gcalLink(s)}" onclick="event.stopPropagation()" title="Google Calendar">📅</a><button class="btn sm ghost" style="color:var(--danger)" onclick="event.stopPropagation();quickCancel('${s.id}')" title="Ακύρωση">✕</button>`:''}${s.status==='cancel'?`<button class="btn sm ghost" onclick="event.stopPropagation();quickRestore('${s.id}')" title="Επαναφορά">↺</button>`:''}</div></div></div>`;}).join('')
     :'<div class="card empty">Καμία συνεδρία.</div>';
 }
@@ -1252,8 +1275,8 @@ function icsCommit(){const today=isoOf(new Date()),now=new Date(),nm=now.getHour
       c={id:uid(),first,last,phone:ph?ph[0].trim():'',email:'',addr:x.loc||'',floor:'',access:'',status:'active',fee:DB.settings.fee||0,created:today,start:occ[0].date,freq:'',concern:'',goals:'',med:'',notes:'Από Google Calendar'};DB.clients.push(c);nc++;}
     else if(x.sel!=='act')c=client(x.sel);
     occ.forEach(o=>{const done=o.date<today||(o.date===today&&mins(o.time)+o.dur<=nm);
-      if(x.sel==='act')DB.sessions.push({id:uid(),kind:'activity',clientId:'',title:x.title,addr:o.loc,note:'',date:o.date,time:o.time,dur:o.dur,type:'activity',status:'planned',fee:0,paid:false,gcalKey:o.key});
-      else DB.sessions.push({id:uid(),clientId:c.id,date:o.date,time:o.time,dur:o.dur,type:(o.loc||c.addr)?'home':'office',status:done?'done':'planned',fee:+c.fee||+DB.settings.fee||0,paid:done,pay:'Μετρητά',mood:'',subj:'',obs:'',int:'',plan:'',gcalKey:o.key});
+      if(x.sel==='act')DB.sessions.push({id:uid(),by:defBy(),kind:'activity',clientId:'',title:x.title,addr:o.loc,note:'',date:o.date,time:o.time,dur:o.dur,type:'activity',status:'planned',fee:0,paid:false,gcalKey:o.key});
+      else DB.sessions.push({id:uid(),by:defBy(),clientId:c.id,date:o.date,time:o.time,dur:o.dur,type:(o.loc||c.addr)?'home':'office',status:done?'done':'planned',fee:+c.fee||+DB.settings.fee||0,paid:done,pay:'Μετρητά',mood:'',subj:'',obs:'',int:'',plan:'',gcalKey:o.key});
       ns++;});});
   save();closeM('mIcs');render();toast(`Μπήκαν ${ns} ραντεβού${nc?` και ${nc} ${nc===1?'νέος πελάτης':'νέοι πελάτες'}`:''}`);}
 
@@ -1274,7 +1297,7 @@ function openPkg(cid,n){$('pkgClient').value=cid;const c=client(cid);if(!c)retur
   $('pkgQuick').innerHTML=[1,4,8,10].map(k=>`<button class="btn sm" type="button" data-n="${k}" onclick="$('pkgN').value=${k};pkgAuto()">${k===1?'1 συνεδρία':k+' συνεδρίες'}</button>`).join('');
   $('pkgN').value=n||1;delete $('pkgAmt').dataset.manual;$('pkgDate').value=isoOf(new Date());$('pkgExp').value='';pkgAuto();openM('mPkg');}
 function savePkg(){const cid=$('pkgClient').value,n=+$('pkgN').value||0,amount=+$('pkgAmt').value||0;if(!n)return toast('Βάλε αριθμό συνεδριών');
-  DB.packages.push({id:uid(),clientId:cid,date:$('pkgDate').value||isoOf(new Date()),exp:$('pkgExp').value||'',n,amount,pay:$('pkgPay').value});
+  DB.packages.push({id:uid(),by:defBy(),clientId:cid,date:$('pkgDate').value||isoOf(new Date()),exp:$('pkgExp').value||'',n,amount,pay:$('pkgPay').value});
   let left=n,old=0,fut=0;
   if($('pkgOld')?.checked)pkgUnpaid(cid).sort((a,b)=>a.date.localeCompare(b.date)).forEach(s=>{if(left<=0)return;s.pay='Πακέτο';s.paid=true;s.fee=0;left--;old++;});
   pkgUpcoming(cid).forEach(s=>{if(left<=0)return;s.pay='Πακέτο';left--;fut++;});
@@ -1302,18 +1325,18 @@ function printRcpt(){document.body.classList.add('rcpt-mode');window.print();set
 /* ---- EXPORT ΛΟΓΙΣΤΗ ---- */
 async function exportYear(){const y=await askText('Έτος για τον λογιστή',String(new Date().getFullYear()),{ok:'Export'});if(!y)return;
   const rows=[['ΜΗΝΑΣ','ΣΥΝΕΔΡΙΕΣ','ΕΣΟΔΑ ΣΥΝΕΔΡΙΩΝ','ΕΣΟΔΑ ΠΑΚΕΤΩΝ','ΣΥΝΟΛΟ','ΕΙΣΠΡΑΧΘΕΝΤΑ ΜΕΤΡΗΤΑ','ΕΙΣΠΡΑΧΘΕΝΤΑ ΤΡΑΠΕΖΑ/IRIS/ΚΑΡΤΑ','ΕΚΚΡΕΜΗ']];let T=[0,0,0,0,0,0,0];
-  for(let m=1;m<=12;m++){const p=`${y}-${String(m).padStart(2,'0')}`;const ss=DB.sessions.filter(s=>s.date.startsWith(p)&&(s.status==='done'||(s.status==='noshow'&&DB.settings.noShow)));const pk=DB.packages.filter(x=>x.date.startsWith(p));
+  for(let m=1;m<=12;m++){const p=`${y}-${String(m).padStart(2,'0')}`;const ss=DB.sessions.filter(s=>inView(s)&&s.date.startsWith(p)&&(s.status==='done'||(s.status==='noshow'&&DB.settings.noShow)));const pk=DB.packages.filter(x=>inView(x)&&x.date.startsWith(p));
     const inc=ss.reduce((a,s)=>a+(+s.fee||0),0),pki=pk.reduce((a,x)=>a+(+x.amount||0),0);
     const cash=ss.filter(s=>s.paid&&s.pay==='Μετρητά').reduce((a,s)=>a+(+s.fee||0),0)+pk.filter(x=>x.pay==='Μετρητά').reduce((a,x)=>a+(+x.amount||0),0);
     const bank=ss.filter(s=>s.paid&&['Τραπεζικά','IRIS','Κάρτα'].includes(s.pay)).reduce((a,s)=>a+(+s.fee||0),0)+pk.filter(x=>x.pay!=='Μετρητά').reduce((a,x)=>a+(+x.amount||0),0);
     const pend=ss.filter(s=>!s.paid).reduce((a,s)=>a+(+s.fee||0),0);const r=[ss.length,inc,pki,inc+pki,cash,bank,pend];T=T.map((v,i)=>v+r[i]);
     rows.push([new Date(y,m-1,1).toLocaleDateString('el-GR',{month:'long'}),...r]);}
   rows.push(['ΣΥΝΟΛΟ ΕΤΟΥΣ',...T]);rows.push([]);rows.push(['ΑΝΑΛΥΤΙΚΑ']);rows.push(['Ημ/νία','Πελάτης','ΑΦΜ πελάτη','Ποσό','Πληρώθηκε','Τρόπος','Αρ. απόδειξης']);
-  DB.sessions.filter(s=>s.date.startsWith(y)&&s.status==='done').sort((a,b)=>a.date.localeCompare(b.date)).forEach(s=>{const c=client(s.clientId);rows.push([s.date,cname(c),c?.afm||'',s.fee,s.paid?'ναι':'όχι',s.pay||'',s.rcpt||'']);});
-  DB.packages.filter(x=>x.date.startsWith(y)).forEach(x=>rows.push([x.date,cname(client(x.clientId))+' (πακέτο '+x.n+')',client(x.clientId)?.afm||'',x.amount,'ναι',x.pay,'']));
+  DB.sessions.filter(s=>inView(s)&&s.date.startsWith(y)&&s.status==='done').sort((a,b)=>a.date.localeCompare(b.date)).forEach(s=>{const c=client(s.clientId);rows.push([s.date,cname(c),c?.afm||'',s.fee,s.paid?'ναι':'όχι',s.pay||'',s.rcpt||'']);});
+  DB.packages.filter(x=>inView(x)&&x.date.startsWith(y)).forEach(x=>rows.push([x.date,cname(client(x.clientId))+' (πακέτο '+x.n+')',client(x.clientId)?.afm||'',x.amount,'ναι',x.pay,'']));
   rows.push([]);rows.push(['ΕΞΟΔΑ']);rows.push(['Ημ/νία','Κατηγορία','Ποσό','Παραστατικό','km','Σημείωση']);
-  DB.expenses.filter(e=>e.date.startsWith(y)).sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>rows.push([e.date,e.cat,e.amount,e.doc,e.km||'',e.note||'']));
-  rows.push(['ΣΥΝΟΛΟ ΕΞΟΔΩΝ','',DB.expenses.filter(e=>e.date.startsWith(y)).reduce((a,e)=>a+e.amount,0)]);
+  DB.expenses.filter(e=>inView(e)&&e.date.startsWith(y)).sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>rows.push([e.date,e.cat,e.amount,e.doc,e.km||'',e.note||'']));
+  rows.push(['ΣΥΝΟΛΟ ΕΞΟΔΩΝ','',DB.expenses.filter(e=>inView(e)&&e.date.startsWith(y)).reduce((a,e)=>a+e.amount,0)]);
   const csv='﻿'+rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(';')).join('\n');saveFile(`logistis-${y}.csv`,new Blob([csv],{type:'text/csv'}));}
 
 /* ---- ΣΥΝΕΔΡΙΑ ---- */
@@ -1338,12 +1361,12 @@ function sessClientChanged(){const c=client($('sClient').value);if(!$('sId').val
   const ds=c?docSummary(c.id,3,true):'';$('sDocsInfo').style.display=ds?'':'none';$('sDocsInfo').innerHTML=ds?`<b>📋 Έγγραφα πελάτη</b><br>${ds}`:'';}
 async function saveSession(){const id=$('sId').value;
   if(curKind==='activity'){const title=$('aTitle').value.trim();if(!title)return toast('Βάλε τίτλο');const addr=$('aAddr').value.trim();const old=id?DB.sessions.find(x=>x.id===id):null;
-    const a={kind:'activity',clientId:'',title,addr,note:$('aNote').value.trim(),date:$('sDate').value,time:$('sTime').value,dur:+$('sDurI').value||0,type:'activity',status:$('sStatus').value==='cancel'?'cancel':'planned',fee:0,paid:false};
+    const a={kind:'activity',by:selBy(id&&DB.sessions.find(x=>x.id===id)),clientId:'',title,addr,note:$('aNote').value.trim(),date:$('sDate').value,time:$('sTime').value,dur:+$('sDurI').value||0,type:'activity',status:$('sStatus').value==='cancel'?'cancel':'planned',fee:0,paid:false};
     if(!a.date)return toast('Βάλε ημερομηνία');if(old&&old.addr!==addr){a.ll=null;if(DB.legs)for(const k in DB.legs)if(k.split('|').includes(id))delete DB.legs[k];}
     if(old)Object.assign(old,a);else{DB.sessions.push({id:uid(),...a});const rep=+$('sRepeat').value,n=+$('sRepeatN').value||0;if(rep>0)for(let i=1;i<n;i++)DB.sessions.push({id:uid(),...a,date:addDays(a.date,rep*i)});}
     save();closeM('mSess');toast('Αποθηκεύτηκε');render();return;}
   if(!$('sClient').value){toast('Πρόσθεσε πρώτα έναν πελάτη');return openClient();}
-  const base={clientId:$('sClient').value,date:$('sDate').value,time:$('sTime').value,dur:+$('sDurI').value||0,type:$('sType').value,status:$('sStatus').value,fee:+$('sFeeI').value||0,paid:$('sPaid').checked,pay:$('sPay').value,mood:curMood>=0?curMood:'',subj:$('sSubj').value,obs:$('sObs').value,int:$('sInt').value,plan:$('sPlan').value};
+  const base={by:selBy(id&&DB.sessions.find(x=>x.id===id)),clientId:$('sClient').value,date:$('sDate').value,time:$('sTime').value,dur:+$('sDurI').value||0,type:$('sType').value,status:$('sStatus').value,fee:+$('sFeeI').value||0,paid:$('sPaid').checked,pay:$('sPay').value,mood:curMood>=0?curMood:'',subj:$('sSubj').value,obs:$('sObs').value,int:$('sInt').value,plan:$('sPlan').value};
   if(!base.date)return toast('Βάλε ημερομηνία');
   if(!id||DB.sessions.find(x=>x.id===id)?.date!==base.date||DB.sessions.find(x=>x.id===id)?.time!==base.time){
     const hl=holiday(base.date);if(hl&&!await ask(`Η ${fmtD(base.date)} είναι αργία (${hl}). Συνέχεια;`))return;
@@ -1361,17 +1384,17 @@ let finY=new Date().getFullYear(),finM=new Date().getMonth();
 function finShift(n){finM+=n;if(finM<0){finM=11;finY--}if(finM>11){finM=0;finY++}renderFin();}
 function renderFin(){const pre=`${finY}-${String(finM+1).padStart(2,'0')}`;
   $('finTitle').textContent=new Date(finY,finM,1).toLocaleDateString('el-GR',{month:'long',year:'numeric'});
-  const ms=DB.sessions.filter(s=>s.date.startsWith(pre)&&billable(s));const pkM=DB.packages.filter(p=>p.date.startsWith(pre)).reduce((a,p)=>a+(+p.amount||0),0);
+  const ms=DB.sessions.filter(s=>inView(s)&&s.date.startsWith(pre)&&billable(s));const pkM=DB.packages.filter(p=>inView(p)&&p.date.startsWith(pre)).reduce((a,p)=>a+(+p.amount||0),0);
   const tot=ms.reduce((a,s)=>a+(+s.fee||0),0)+pkM,pd=ms.filter(s=>s.paid).reduce((a,s)=>a+(+s.fee||0),0)+pkM;
-  const cancels=DB.sessions.filter(s=>s.date.startsWith(pre)&&(s.status==='cancel'||s.status==='noshow')).length;
-  const homes=ms.filter(s=>s.type==='home').length;const exM=DB.expenses.filter(e=>e.date.startsWith(pre)).reduce((a,e)=>a+e.amount,0);
+  const cancels=DB.sessions.filter(s=>inView(s)&&s.date.startsWith(pre)&&(s.status==='cancel'||s.status==='noshow')).length;
+  const homes=ms.filter(s=>s.type==='home').length;const exM=DB.expenses.filter(e=>inView(e)&&e.date.startsWith(pre)).reduce((a,e)=>a+e.amount,0);
   $('finTabIn').classList.toggle('active',finTab==='in');$('finTabOut').classList.toggle('active',finTab==='out');$('finIn').style.display=finTab==='in'?'':'none';$('finOut').style.display=finTab==='out'?'':'none';renderExp(pre);
   $('finKpi').innerHTML=`<div class="card"><div class="v">${money(tot)}</div><div class="l">έσοδα μήνα${pkM?` (+${money(pkM)} πακέτα)`:''}</div></div><div class="card"><div class="v" style="color:var(--danger)">${money(exM)}</div><div class="l">έξοδα μήνα</div></div><div class="card"><div class="v" style="color:${tot-exM>=0?'var(--ok)':'var(--danger)'}">${money(tot-exM)}</div><div class="l">καθαρό</div></div><div class="card"><div class="v">${money(pd)}</div><div class="l">εισπραχθέντα</div></div><div class="card"><div class="v" style="color:${tot-pd?'var(--warn)':'var(--brand)'}">${money(tot-pd)}</div><div class="l">εκκρεμούν</div></div><div class="card"><div class="v">${ms.length}</div><div class="l">συνεδρίες (${homes} κατ' οίκον)</div></div><div class="card"><div class="v">${cancels}</div><div class="l">ακυρώσεις / no-show</div></div>`;
   const by={};ms.forEach(s=>{by[s.clientId]=by[s.clientId]||{n:0,t:0,p:0};by[s.clientId].n++;by[s.clientId].t+=+s.fee||0;if(s.paid)by[s.clientId].p+=+s.fee||0;});
   $('finByClient').innerHTML=Object.keys(by).length?`<table><tr><th>Πελάτης</th><th>Συν.</th><th class="right">Σύνολο</th><th class="right">Εκκρεμεί</th></tr>${Object.entries(by).sort((a,b)=>b[1].t-a[1].t).map(([id,v])=>`<tr><td><a href="#" onclick="viewClient('${id}','fin');return false">${esc(cname(client(id)))}</a></td><td>${v.n}</td><td class="right">${money(v.t)}</td><td class="right">${v.t-v.p?'<span class="pill warn">'+money(v.t-v.p)+'</span>':'—'}</td></tr>`).join('')}</table>`:'<div class="empty small">Τίποτα αυτόν τον μήνα.</div>';
-  const un=DB.sessions.filter(s=>billable(s)&&!s.paid).sort((a,b)=>a.date.localeCompare(b.date));
+  const un=DB.sessions.filter(s=>billable(s)&&!s.paid&&inView(s)).sort((a,b)=>a.date.localeCompare(b.date));
   $('finUnpaid').innerHTML=un.length?`<table><tr><th>Ημ/νία</th><th>Πελάτης</th><th class="right">Ποσό</th><th></th></tr>${un.map(s=>`<tr><td>${fmtD(s.date)}</td><td>${esc(cname(client(s.clientId)))}</td><td class="right">${money(s.fee)}</td><td class="right"><button class="btn sm" onclick="quickPaid('${s.id}')">€ Πληρώθηκε</button></td></tr>`).join('')}<tr><td colspan="2"><b>Σύνολο</b></td><td class="right"><b>${money(un.reduce((a,s)=>a+(+s.fee||0),0))}</b></td><td></td></tr></table>`:'<div class="empty small">Όλα εξοφλημένα 🎉</div>';
-  const months=[];for(let i=11;i>=0;i--){const d=new Date(finY,finM-i,1);const p=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;const v=DB.sessions.filter(s=>s.date.startsWith(p)&&s.status==='done');months.push({l:d.toLocaleDateString('el-GR',{month:'short',year:'2-digit'}),t:v.reduce((a,s)=>a+(+s.fee||0),0),n:v.length});}
+  const months=[];for(let i=11;i>=0;i--){const d=new Date(finY,finM-i,1);const p=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;const v=DB.sessions.filter(s=>inView(s)&&s.date.startsWith(p)&&s.status==='done');months.push({l:d.toLocaleDateString('el-GR',{month:'short',year:'2-digit'}),t:v.reduce((a,s)=>a+(+s.fee||0),0),n:v.length});}
   const mx=Math.max(1,...months.map(m=>m.t));
   $('finMonths').innerHTML=`<div style="display:flex;gap:4px;align-items:flex-end;height:120px">${months.map(m=>`<div style="flex:1;text-align:center" title="${m.l}: ${money(m.t)} (${m.n})"><div style="background:var(--brand);border-radius:4px 4px 0 0;height:${Math.round(m.t/mx*90)}px;margin:0 auto;opacity:${m.t?1:.2}"></div><div class="small muted" style="font-size:10px">${m.l}</div></div>`).join('')}</div>`;
 }
@@ -1469,10 +1492,10 @@ let finTab='in';
 function openExp(id,pre){const e=id?DB.expenses.find(x=>x.id===id):null;$('mExpTitle').textContent=e?'Επεξεργασία εξόδου':'Νέο έξοδο';$('eDelete').style.display=e?'':'none';
   $('eId').value=e?.id||'';$('eDate').value=e?.date||pre?.date||isoOf(new Date());$('eAmt').value=e?e.amount:(pre?.amount??'');$('eCat').value=e?.cat||pre?.cat||'Καύσιμα';$('eKm').value=e?.km||pre?.km||'';$('eDoc').value=e?.doc||'Απόδειξη';$('eNote').value=e?.note||pre?.note||'';openM('mExp');}
 function saveExp(){const id=$('eId').value||uid();const amt=+$('eAmt').value;if(!(amt>0))return toast('Βάλε ποσό');const e=DB.expenses.find(x=>x.id===id)||{id};
-  Object.assign(e,{date:$('eDate').value||isoOf(new Date()),amount:Math.round(amt*100)/100,cat:$('eCat').value,km:+$('eKm').value||0,doc:$('eDoc').value,note:$('eNote').value.trim()});
+  Object.assign(e,{by:e.by||defBy(),date:$('eDate').value||isoOf(new Date()),amount:Math.round(amt*100)/100,cat:$('eCat').value,km:+$('eKm').value||0,doc:$('eDoc').value,note:$('eNote').value.trim()});
   if(!DB.expenses.find(x=>x.id===id))DB.expenses.push(e);save();closeM('mExp');toast('Καταχωρήθηκε');if(view==='fin'){finTab='out';renderFin();}}
 async function deleteExp(){const id=$('eId').value;if(!await ask('Διαγραφή εξόδου;'))return;DB.expenses=DB.expenses.filter(x=>x.id!==id);save();closeM('mExp');renderFin();}
-function renderExp(pre){const ms=DB.expenses.filter(e=>e.date.startsWith(pre)).sort((a,b)=>b.date.localeCompare(a.date));
+function renderExp(pre){const ms=DB.expenses.filter(e=>inView(e)&&e.date.startsWith(pre)).sort((a,b)=>b.date.localeCompare(a.date));
   $('expList').innerHTML=ms.length?`<table><tr><th>Ημ/νία</th><th>Κατηγορία</th><th>Σημείωση</th><th class="right">Ποσό</th></tr>${ms.map(e=>`<tr style="cursor:pointer" onclick="openExp('${e.id}')"><td>${fmtD(e.date).slice(0,5)}</td><td>${esc(e.cat)}${e.km?` <span class="small muted">${e.km} km</span>`:''}</td><td class="small muted">${esc(e.note||'')}${e.doc==='Χωρίς'?' <span class="pill gray">χωρίς παραστατικό</span>':''}</td><td class="right">${money(e.amount)}</td></tr>`).join('')}<tr><td colspan="3"><b>Σύνολο</b></td><td class="right"><b>${money(ms.reduce((a,e)=>a+e.amount,0))}</b></td></tr></table>`:'<div class="empty small">Κανένα έξοδο αυτόν τον μήνα.</div>';
   const by={};ms.forEach(e=>by[e.cat]=(by[e.cat]||0)+e.amount);const mx=Math.max(1,...Object.values(by));
   $('expByCat').innerHTML=Object.keys(by).length?Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([c,v])=>`<div class="row" style="justify-content:space-between;margin:4px 0"><span class="small">${esc(c)}</span><span class="small"><b>${money(v)}</b></span></div><div style="height:6px;background:var(--brand-soft);border-radius:3px;margin-bottom:6px"><div style="width:${Math.round(v/mx*100)}%;height:6px;background:var(--brand);border-radius:3px"></div></div>`).join(''):'<div class="empty small">—</div>';}
@@ -1563,7 +1586,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(v
 /* ---- ΣΗΜΕΡΑ: χαιρετισμός, επόμενη επίσκεψη, εβδομάδα ---- */
 function greetWord(){const h=new Date().getHours();return h<12?'Καλημέρα':h<17?'Καλό απόγευμα':'Καλησπέρα';}
 function nextUp(){const now=new Date(),t=isoOf(now),nm=now.getHours()*60+now.getMinutes();
-  return DB.sessions.filter(s=>s.status==='planned'&&(s.date>t||(s.date===t&&(!s.time||mins(s.time)+(+s.dur||0)>nm))))
+  return DB.sessions.filter(s=>s.status==='planned'&&inView(s)&&(s.date>t||(s.date===t&&(!s.time||mins(s.time)+(+s.dur||0)>nm))))
     .sort((a,b)=>(a.date+(a.time||'99')).localeCompare(b.date+(b.time||'99')))[0];}
 const hhmm=d=>`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 function renderGreet(){const g=$('greet');if(!g)return;const t=isoOf(new Date());const n=sessionsOn(t).filter(s=>s.status!=='cancel'&&s.kind!=='activity').length;
@@ -1609,7 +1632,7 @@ function renderHero(){const box=$('hero');if(!box)return;if(todayOffset!==0){box
   box.innerHTML=`<div class="hero"><div class="h-main">
     <div class="h-eyebrow"><span class="live"></span>${diff<=0?'Τώρα':'Επόμενη επίσκεψη'} · ${when}</div>
     <div class="h-time">${esc(s.time||'—')}<small>${s.date===t?'σήμερα':esc(fmtDL(s.date))}</small></div>
-    <div class="h-name" ${isAct?'':`onclick="viewClient('${s.clientId}')"`}>${isAct?'📌 '+esc(s.title):esc(cname(c))}</div>
+    <div class="h-name" ${isAct?'':`onclick="viewClient('${s.clientId}')"`}>${isAct?'📌 '+esc(s.title):esc(cname(c))}${therTag(s)}</div>
     ${addr?`<div class="h-sub">📍 ${esc(addr)}${!isAct&&c?.floor?' · '+esc(c.floor):''}</div>`:''}${!isAct&&c?.access?`<div class="h-sub">🅿️ ${esc(c.access)}</div>`:''}
     ${lastPlan?`<div class="h-sub">↺ Τελευταίο πλάνο: ${esc(lastPlan.plan.length>110?lastPlan.plan.slice(0,110)+'…':lastPlan.plan)}</div>`:''}
     <div class="h-chips">${chips.join('')}</div>
@@ -1631,9 +1654,9 @@ setInterval(()=>{if(view==='today'&&!document.querySelector('.modal-bg.open'))re
 const B3={yaw:-.62,pitch:.5,sel:11,data:[],hits:[],grow:1,drag:null,anim:0};
 function renderFin3D(){const box=$('finMonths');if(!box)return;const D=[];
   for(let i=11;i>=0;i--){const d=new Date(finY,finM-i,1);const p=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    const inc=DB.sessions.filter(s=>s.date.startsWith(p)&&billable(s)).reduce((a,s)=>a+(+s.fee||0),0)+DB.packages.filter(x=>x.date.startsWith(p)).reduce((a,x)=>a+(+x.amount||0),0);
-    const ex=DB.expenses.filter(e=>e.date.startsWith(p)).reduce((a,e)=>a+e.amount,0);
-    D.push({l:d.toLocaleDateString('el-GR',{month:'short'}).replace('.',''),full:d.toLocaleDateString('el-GR',{month:'long',year:'numeric'}),inc,ex,n:DB.sessions.filter(s=>s.date.startsWith(p)&&billable(s)).length});}
+    const inc=DB.sessions.filter(s=>inView(s)&&s.date.startsWith(p)&&billable(s)).reduce((a,s)=>a+(+s.fee||0),0)+DB.packages.filter(x=>inView(x)&&x.date.startsWith(p)).reduce((a,x)=>a+(+x.amount||0),0);
+    const ex=DB.expenses.filter(e=>inView(e)&&e.date.startsWith(p)).reduce((a,e)=>a+e.amount,0);
+    D.push({l:d.toLocaleDateString('el-GR',{month:'short'}).replace('.',''),full:d.toLocaleDateString('el-GR',{month:'long',year:'numeric'}),inc,ex,n:DB.sessions.filter(s=>inView(s)&&s.date.startsWith(p)&&billable(s)).length});}
   B3.data=D;B3.sel=11;
   box.innerHTML=`<div class="b3-head"><div><div class="eyebrow" id="b3m"></div></div><div class="b3-nums" id="b3n"></div></div><div class="b3-wrap"><canvas id="b3c" role="img" aria-label="Έσοδα και έξοδα των τελευταίων 12 μηνών σε 3D μπάρες"></canvas></div>
     <div class="b3-legend"><span><i class="lg inc"></i>Έσοδα</span><span><i class="lg ex"></i>Έξοδα</span><span class="muted">Σύρε για περιστροφή · πάτα έναν μήνα για λεπτομέρειες</span></div>`;
@@ -1765,6 +1788,8 @@ function seedDemo(){const T0=isoOf(new Date()),now=new Date(),nm=now.getHours()*
   DB.docs=[{id:'demo-d1',clientId:'demo-c0',type:'Μαγνητική (MRI)',region:'Οσφυϊκή μοίρα',date:addDays(T0,-160),doctor:'Διαγνωστικό κέντρο Θεσσαλονίκης',find:'Προβολή μεσοσπονδύλιου δίσκου Ο4-Ο5 με ήπια πίεση της ΔΕ ρίζας.',pin:true,created:addDays(T0,-150)}];
   DB.clients[0].q={gender:'Γυναίκα',job:'Λογίστρια',problem:'Πόνος χαμηλά στη μέση που κατεβαίνει στο δεξί πόδι',onset:'Σταδιακά',course:'Βελτιώνεται',pain:'6',painType:['Βαθύς','Διαλείπων'],trig:['Καθιστή θέση','Φόρτιση'],relief:['Αλλαγή θέσης','Θερμότητα'],act:['Καθιστή θέση','Οδήγηση','Ύπνος'],impact:'Μέτρια',goals:'Να κάθεται 2 ώρες στο γραφείο χωρίς πόνο',cond:['Υπέρταση'],allergy:'Όχι γνωστές αλλεργίες',anticoag:'Όχι',red:['Όχι'],
     map:[{side:'back',x:50,y:96,t:0},{side:'back',x:44,y:101,t:0},{side:'back',x:57,y:132,t:2},{side:'back',x:58,y:150,t:3},{side:'front',x:57,y:140,t:2}],fillDate:addDays(T0,-150),updated:addDays(T0,-150)};
+  DB.settings.staff={'demo-t1':{name:'Αλέξανδρος',ther:true},'demo-t2':{name:'Δημήτρης',ther:true}};DB.settings.mainTher='demo-t1';DB.settings.me='demo-t1';
+  DB.sessions.forEach(s=>{if(s.clientId==='demo-c2'||s.clientId==='demo-c3')s.by='demo-t2';});DB.expenses.forEach((e,i)=>{if(i%3===0)e.by='demo-t2';});
   Object.assign(DB.settings,{name:'Αλέξανδρος Π.',prof:'Φυσικοθεραπευτής',base:'Εγνατία 100, Θεσσαλονίκη',fee:45,dur:50});
   // συντεταγμένες (περίπου) ώστε διαδρομές/χρόνοι να βγαίνουν χωρίς αναζήτηση διεύθυνσης
   const LL=[[40.6330,22.9425],[40.6320,22.9455],[40.6045,22.9590],[40.6275,22.9500],[40.5830,22.9520],[40.5850,22.9480]];
@@ -1837,7 +1862,7 @@ async function cloudPull(full){if(!CS.practice||!navigator.onLine)return 0;
     const {data,error}=await q;if(error)throw error;rows=rows.concat(data);if(data.length<1000)break;from+=1000;}
   if(!rows.length)return 0;const snap=snapshot();let changed=0;CS.applying=true;
   try{rows.forEach(r=>{const key=r.kind+'|'+r.id;const rh=r.deleted?null:h53(JSON.stringify(r.data));const lh=key in snap?h53(snap[key]):null;
-      const localPending=(lh!==(CS.base[key]??null));
+      const localPending=!(CS.fresh&&(r.kind==='settings'||r.kind==='meta'))&&(lh!==(CS.base[key]??null));
       if(!localPending&&lh!==rh){applyRow(r);changed++;}
       if(r.deleted)delete CS.base[key];else CS.base[key]=rh;
       if(!CS.cursor||r.updated_at>CS.cursor)CS.cursor=r.updated_at;});
@@ -1845,7 +1870,7 @@ async function cloudPull(full){if(!CS.practice||!navigator.onLine)return 0;
   if(changed)render();
   return changed;}
 function schedulePull(ms){clearTimeout(CS.pullT);CS.pullT=setTimeout(async()=>{try{await cloudPull(false);await cloudPush();}catch(e){setSync('error',e.message);}},ms||700);}
-async function startSync(full){setSync('syncing');try{await cloudPull(full);await cloudPush();loadMembers();}catch(e){console.warn(e);setSync(navigator.onLine?'error':'offline',e.message);}
+async function startSync(full){setSync('syncing');try{await cloudPull(full);CS.fresh=false;await cloudPush();loadMembers();}catch(e){console.warn(e);setSync(navigator.onLine?'error':'offline',e.message);}
   if(CS.chan)sb.removeChannel(CS.chan);
   CS.chan=sb.channel('hs-'+CS.practice.id).on('postgres_changes',{event:'*',schema:'public',table:'hs_records',filter:'practice_id=eq.'+CS.practice.id},()=>schedulePull(600)).subscribe();
   clearInterval(CS.timer);CS.timer=setInterval(()=>schedulePull(10),60000);renderCloud();}
@@ -1902,13 +1927,13 @@ async function afterLogin(user){CS.user=user;const meta=lsGet(META_KEY);let pr=n
   if(!pr)return showSetup();hideAuth();await enterPractice(pr,role,meta);}
 async function enterPractice(pr,role,meta){CS.practice=pr;CS.role=role;const same=meta&&meta.practice&&meta.practice.id===pr.id&&meta.user_id===CS.user.id;
   if(same){CS.cursor=meta.cursor;CS.base=lsGet(BASE_KEY)||{};}
-  else{CS.cursor=null;CS.base={};let count=0;try{const r=await sb.from('hs_records').select('id',{count:'exact',head:true}).eq('practice_id',pr.id).eq('deleted',false).neq('kind','settings').neq('kind','meta');count=r.count||0;}catch(e){}
+  else{CS.cursor=null;CS.base={};CS.fresh=true;let count=0;try{const r=await sb.from('hs_records').select('id',{count:'exact',head:true}).eq('practice_id',pr.id).eq('deleted',false).neq('kind','settings').neq('kind','meta');count=r.count||0;}catch(e){}
     const localHas=DB.clients.length+DB.sessions.length+DB.expenses.length;
     // τα τοπικά δεν ανεβαίνουν «τυφλά»: κρατιούνται και προτείνεται συγχώνευση μετά τη λήψη του ιατρείου
     if(localHas&&!DB.demo&&!lsGet(LEGACY_KEY))lsSet(LEGACY_KEY,{at:new Date().toISOString(),db:DB});DB=freshDB();_saveLocal();}
   saveMeta();render();await startSync(!same);if(CS.role==='owner')gcalCheck(true);renderImport();setTimeout(()=>offerLegacy(false),600);}
 async function loadMembers(){if(!CS.practice)return;try{const {data}=await sb.from('hs_members').select('user_id,role,email').eq('practice_id',CS.practice.id).order('created_at');CS.members=data||[];
-    const {data:p}=await sb.from('hs_practices').select('id,name,invite_code,max_members,gcal_id,gcal_error').eq('id',CS.practice.id).maybeSingle();if(p){CS.practice=p;saveMeta();}}catch(e){}renderCloud();}
+    const {data:p}=await sb.from('hs_practices').select('id,name,invite_code,max_members,gcal_id,gcal_error').eq('id',CS.practice.id).maybeSingle();if(p){CS.practice=p;saveMeta();}}catch(e){}renderCloud();render();}
 async function newInvite(){try{const {data,error}=await sb.rpc('hs_new_invite_code',{p:CS.practice.id});if(error)throw error;CS.practice.invite_code=data;saveMeta();renderCloud();toast('Νέος κωδικός πρόσκλησης');}catch(e){toast(AUTH_ERR(e));}}
 async function removeMember(uid){const m=CS.members.find(x=>x.user_id===uid);if(!await ask(`Αφαίρεση του ${m?.email||'χρήστη'} από το ιατρείο;`))return;
   const {error}=await sb.from('hs_members').delete().eq('practice_id',CS.practice.id).eq('user_id',uid);toast(error?AUTH_ERR(error):'Αφαιρέθηκε');loadMembers();}
@@ -1929,7 +1954,47 @@ function renderCloud(){const box=$('cloudCard');if(!box)return;box.hidden=!CLOUD
       <div class="row" style="margin-top:8px"><span style="font:700 22px var(--f-mono);letter-spacing:.12em">${esc(CS.practice.invite_code||'')}</span><button class="btn sm" onclick="copyInvite()">Αντιγραφή</button><button class="btn sm ghost" onclick="newInvite()">Νέος κωδικός</button></div></div>`:''}
     <div class="row" style="margin-top:12px"><button class="btn" onclick="syncNow()">↻ Συγχρονισμός τώρα</button><button class="btn danger" onclick="cloudSignOut()">Αποσύνδεση</button></div>`;
   setSync(CS.status,CS.err);}
-const _renderSet=renderSet;renderSet=function(){_renderSet();renderCloud();renderGcal();renderImport();};
+const _renderSet=renderSet;renderSet=function(){_renderSet();renderCloud();renderGcal();renderImport();renderTeam();};
+
+/* ================= ΠΡΟΦΙΛ ΘΕΡΑΠΕΥΤΩΝ: κοινοί πελάτες, ξεχωριστό πρόγραμμα/οικονομικά ================= */
+const T_COL=['#2a8cf0','#7c5cff','#0f9d6b','#e0457b','#0891b2'];
+const staffMap=()=>DB.settings.staff||{};
+const ME=()=>CLOUD_ON?(CS.user?.id||''):(DB.settings.me||'');
+const isOwner=()=>CLOUD_ON?CS.role==='owner':true;
+function therapists(){const st=staffMap();let list;
+  if(CLOUD_ON&&CS.practice)list=(CS.members||[]).filter(m=>st[m.user_id]?.ther!==false).map(m=>({id:m.user_id,name:st[m.user_id]?.name||(m.email||'').split('@')[0],email:m.email}));
+  else list=Object.entries(st).filter(([,v])=>v&&v.ther!==false).map(([id,v])=>({id,name:v.name||'—'}));
+  return list.map((t,i)=>({...t,color:st[t.id]?.color||T_COL[i%T_COL.length]}));}
+const sessBy=r=>(r&&r.by)||DB.settings.mainTher||'';
+const isTher=id=>therapists().some(t=>t.id===id);
+function therFilter(){const ts=therapists();if(ts.length<2&&isOwner())return 'all';if(!isOwner())return ME();
+  let f=null;try{f=localStorage.getItem('hs_prof');}catch(e){}if(f==='all'||ts.some(t=>t.id===f))return f;return isTher(ME())?ME():'all';}
+function inView(r){const f=therFilter();return f==='all'||sessBy(r)===f;}
+function defBy(){const f=therFilter();if(f!=='all')return f;if(isTher(ME()))return ME();return DB.settings.mainTher||therapists()[0]?.id||ME()||'';}
+function selBy(existing){const row=$('sByRow'),el=$('sBy');if(row&&!row.hidden&&el&&el.value)return el.value;if(existing&&existing.by)return existing.by;return defBy();}
+const tInit=n=>(n||'?').split(/\s+/).map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
+function therTag(r){const ts=therapists();if(ts.length<2||therFilter()!=='all')return '';const t=ts.find(x=>x.id===sessBy(r));return t?`<span class="ttag" style="background:${t.color}">${esc(t.name.split(' ')[0])}</span>`:'';}
+function setProf(v){try{localStorage.setItem('hs_prof',v);}catch(e){}closeM('mProf');todayOffset=0;render();const t=therapists().find(x=>x.id===v);toast(v==='all'?'Όλοι οι θεραπευτές':'Προφίλ: '+(t?t.name:''));}
+function renderProf(){const b=$('profBtn');if(!b)return;const ts=therapists(),show=ts.length>1&&isOwner();b.hidden=!show;document.body.classList.toggle('has-prof',show);const f=therFilter();
+  const t=ts.find(x=>x.id===f);document.documentElement.style.setProperty('--prof',ts.length>1&&t?t.color:'transparent');if(!show)return;
+  b.innerHTML=t?`<span class="av" style="background:${t.color}">${esc(tInit(t.name))}</span><span class="n">${esc(t.name.split(' ')[0])}</span>`
+    :`<span class="av all" style="--c1:${ts[0].color};--c2:${ts[1].color}">ΟΛ</span><span class="n">Όλοι</span>`;}
+function openProf(){const ts=therapists(),f=therFilter(),t0=isoOf(new Date());
+  const cnt=id=>DB.sessions.filter(s=>s.date===t0&&s.status!=='cancel'&&s.kind!=='activity'&&(id==='all'||sessBy(s)===id)).length;
+  $('profList').innerHTML=ts.map(t=>`<button class="prof-row ${f===t.id?'on':''}" style="--prof:${t.color}" onclick="setProf('${t.id}')"><span class="av" style="background:${t.color};width:38px;height:38px;font-size:13px">${esc(tInit(t.name))}</span><span style="flex:1;min-width:0"><div>${esc(t.name)}${t.id===ME()?' <span class="pill info">εσύ</span>':''}</div><div class="sub">${cnt(t.id)} συνεδρίες σήμερα</div></span>${f===t.id?'✓':''}</button>`).join('')
+    +`<button class="prof-row ${f==='all'?'on':''}" onclick="setProf('all')"><span class="av all" style="--c1:${ts[0]?.color};--c2:${ts[1]?.color};width:38px;height:38px">ΟΛ</span><span style="flex:1"><div>Όλοι μαζί</div><div class="sub">${cnt('all')} συνεδρίες σήμερα · κάθε κάρτα δείχνει ποιος την κάνει</div></span>${f==='all'?'✓':''}</button>`;
+  openM('mProf');}
+const _openSession=openSession;openSession=function(id,dateIso,clientId){_openSession(id,dateIso,clientId);const row=$('sByRow');if(!row)return;const ts=therapists(),show=ts.length>1&&isOwner();row.hidden=!show;
+  if(show){const s=id?DB.sessions.find(x=>x.id===id):null;$('sBy').innerHTML=ts.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');$('sBy').value=s?sessBy(s)||defBy():defBy();}};
+function setStaff(id,k,v){const st=Object.assign({},staffMap());st[id]=Object.assign({},st[id],{[k]:v});DB.settings.staff=st;save();render();renderTeam();}
+function setMainTher(v){DB.settings.mainTher=v;save();render();renderTeam();toast('Αποθηκεύτηκε');}
+function renderTeam(){const box=$('teamCard');if(!box)return;const ok=CLOUD_ON&&CS.practice&&isOwner();box.hidden=!ok;if(!ok)return;const st=staffMap(),ts=therapists();
+  box.innerHTML=`<h3 style="margin:0">👥 Θεραπευτές & προφίλ</h3><p class="small muted" style="margin:6px 0 10px">Κάθε θεραπευτής έχει δικό του πρόγραμμα, οικονομικά και έξοδα. Οι διαχειριστές αλλάζουν προφίλ από το κουμπί πάνω δεξιά· τα απλά μέλη βλέπουν μόνο το δικό τους. Οι πελάτες είναι κοινοί.</p>
+    ${(CS.members||[]).map(m=>{const s=st[m.user_id]||{},t=ts.find(x=>x.id===m.user_id);return `<div class="list-item" style="display:block"><div class="row" style="gap:8px;flex-wrap:nowrap">${t?`<span class="av" style="background:${t.color}">${esc(tInit(t.name))}</span>`:'<span class="av" style="background:var(--muted)">—</span>'}<div style="min-width:0;flex:1"><div class="small muted" style="overflow-wrap:anywhere">${esc(m.email||'')} · ${m.role==='owner'?'διαχειριστής':'μέλος'}</div></div></div>
+      <div class="grid2" style="margin-top:6px"><div><label>Όνομα στο προφίλ</label><input value="${esc(s.name||(m.email||'').split('@')[0])}" onchange="setStaff('${m.user_id}','name',this.value.trim())"></div>
+      <div class="check" style="align-self:end;margin:0 0 10px"><input type="checkbox" id="ther_${m.user_id}" ${s.ther!==false?'checked':''} onchange="setStaff('${m.user_id}','ther',this.checked)"><label for="ther_${m.user_id}" style="margin:0">Κάνει συνεδρίες</label></div></div></div>`;}).join('')}
+    <label for="mainTher">Ό,τι παλιό δεν έχει θεραπευτή ανήκει στον</label><select id="mainTher" onchange="setMainTher(this.value)">${ts.map(t=>`<option value="${t.id}" ${sessBy({})===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select>`;}
+const _renderAll=render;render=function(){renderProf();_renderAll();};
 
 /* ---- Google Calendar: κοινό ημερολόγιο ιατρείου (γράφει ο server, άμεσα σε κάθε αλλαγή) ---- */
 const GC={q:{s:new Set(),c:new Set()},t:null,info:null,busy:false};
