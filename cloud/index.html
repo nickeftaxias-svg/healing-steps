@@ -650,7 +650,8 @@ td .btn{padding:5px 10px;font-size:12px} td.right{white-space:nowrap}
     </div>
     <div class="row" style="margin-top:8px" id="sessOnly2">
       <div class="check" style="margin:0"><input type="checkbox" id="sPaid"><label for="sPaid" style="margin:0">Πληρώθηκε</label></div>
-      <select id="sPay" style="max-width:160px"><option>Μετρητά</option><option>Τραπεζικά</option><option>IRIS</option><option>Κάρτα</option><option>Πακέτο</option></select>
+      <select id="sPay" style="max-width:160px"><option>Μετρητά</option><option>Τραπεζικά</option><option>IRIS</option><option>Κάρτα</option><option value="Πακέτο">Από προπληρωμή</option></select>
+      <button class="btn sm" type="button" onclick="openPkg($('sClient').value)">💶 Προπλήρωσε</button>
       <span class="small muted" id="sPkgInfo"></span>
     </div>
     <div id="repeatBox">
@@ -732,16 +733,20 @@ td .btn{padding:5px 10px;font-size:12px} td.right{white-space:nowrap}
 <!-- ===== MODAL: ΠΑΚΕΤΟ ===== -->
 <div class="modal-bg" id="mPkg" onclick="if(event.target===this)closeM('mPkg')">
   <div class="modal" style="max-width:420px">
-    <div class="head"><h2>📦 Πακέτο συνεδριών</h2><button class="btn sm ghost" onclick="closeM('mPkg')">✕</button></div>
+    <div class="head"><h2>💶 Προπληρωμή</h2><button class="btn sm ghost" onclick="closeM('mPkg')">✕</button></div>
     <input type="hidden" id="pkgClient">
+    <div class="small muted" id="pkgWho" style="margin-bottom:6px"></div>
+    <label>Πόσες συνεδρίες πλήρωσε;</label>
+    <div class="row" style="gap:6px" id="pkgQuick"></div>
     <div class="grid2">
-      <div><label>Συνεδρίες</label><input id="pkgN" type="number" min="1" value="4"></div>
-      <div><label>Συνολικό ποσό (€)</label><input id="pkgAmt" type="number" min="0" step="5"></div>
+      <div><label>Συνεδρίες</label><input id="pkgN" type="number" min="1" value="1" oninput="pkgAuto()"></div>
+      <div><label>Ποσό που πήρες (€)</label><input id="pkgAmt" type="number" min="0" step="5" oninput="this.dataset.manual=1"></div>
     </div>
     <div class="grid2"><div><label>Ημερομηνία πληρωμής</label><input id="pkgDate" type="date"></div><div><label>Ισχύει έως (προαιρετικό)</label><input id="pkgExp" type="date"></div></div>
     <label>Τρόπος πληρωμής</label><select id="pkgPay"><option>Μετρητά</option><option>Τραπεζικά</option><option>IRIS</option><option>Κάρτα</option></select>
-    <p class="small muted">Το ποσό μετράει ως έσοδο στην ημερομηνία πληρωμής. Κάθε συνεδρία που ολοκληρώνεται με τρόπο πληρωμής «Πακέτο» αφαιρεί 1 από το υπόλοιπο και εμφανίζεται πληρωμένη.</p>
-    <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn" onclick="closeM('mPkg')">Άκυρο</button><button class="btn primary" onclick="savePkg()">Καταχώρηση</button></div>
+    <div id="pkgCover"></div>
+    <p class="small muted">Το ποσό μετράει ως έσοδο την ημέρα που πληρώθηκε. Κάθε συνεδρία που ολοκληρώνεται αφαιρεί 1 από το υπόλοιπο και φαίνεται πληρωμένη — δεν ξαναμετράει στα έσοδα.</p>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn" onclick="closeM('mPkg')">Άκυρο</button><button class="btn primary" onclick="savePkg()">Καταχώρηση προπληρωμής</button></div>
   </div>
 </div>
 
@@ -927,7 +932,7 @@ function renderToday(){
         <div class="time">${esc(s.time||'—')}</div>
         <div style="flex:1">
           <div class="row" style="justify-content:space-between"><b style="font-size:16px;cursor:pointer" onclick="viewClient('${s.clientId}')">${esc(cname(c))}</b><span class="pill ${st[1]}">${st[0]}</span></div>
-          <div class="small muted">${TYPE[s.type]||''} · ${s.dur||'?'}λ · ${s.pay==='Πακέτο'?'πακέτο':money(s.fee)} ${s.paid?'<span class="pill ok">πληρωμένη</span>':s.status==='done'?'<span class="pill warn">απλήρωτη</span>':''}${(()=>{const pi=c?pkgInfo(c.id):null;return pi?` <span class="pill ${pi.expired?'warn':'info'}">📦 ${pi.cr}${pi.n?'/'+pi.n:''} υπόλοιπο${pi.expired?' — έληξε':''}</span>`:'';})()}</div>
+          <div class="small muted">${TYPE[s.type]||''} · ${s.dur||'?'}λ · ${s.pay==='Πακέτο'?'προπληρωμένη':money(s.fee)} ${s.paid?'<span class="pill ok">πληρωμένη</span>':s.status==='done'?'<span class="pill warn">απλήρωτη</span>':''}${(()=>{const pi=c?pkgInfo(c.id):null;return pi?` <span class="pill ${pi.expired?'warn':'info'}">📦 ${pi.cr}${pi.n?'/'+pi.n:''} υπόλοιπο${pi.expired?' — έληξε':''}</span>`:'';})()}</div>
           ${c?.addr&&s.type==='home'?`<div class="small" style="margin-top:4px">📍 ${esc(c.addr)}${c.floor?' · '+esc(c.floor):''}</div>${c.access?`<div class="small muted">🅿️ ${esc(c.access)}</div>`:''}`:''}
           ${s.plan?`<div class="small" style="margin-top:4px">📌 Προηγ. πλάνο: ${esc(s.plan)}</div>`:''}
           ${docSummary(s.clientId,2,true)?`<div class="small" style="margin-top:4px;padding:6px 8px;background:var(--brand-soft);border-radius:8px">${docSummary(s.clientId,2,true)}</div>`:''}
@@ -955,7 +960,7 @@ function mins(t){const [h,m]=(t||'0:0').split(':').map(Number);return h*60+m;}
 function reminderText(c,s){const tpl=DB.settings.tpl||'Καλησπέρα {όνομα}, υπενθύμιση για τη συνεδρία μας {ημέρα} στις {ώρα}. Αν χρειαστεί αλλαγή, ενημερώστε με. {θεραπευτής}';
   return tpl.replace('{όνομα}',c.first).replace('{ημέρα}',fmtDL(s.date)).replace('{ώρα}',s.time||'').replace('{θεραπευτής}',DB.settings.name||'').replace('{διεύθυνση}',c.addr||'');}
 function copyTxt(t){navigator.clipboard?.writeText(t).then(()=>toast('Αντιγράφηκε'));}
-function quickDone(id){const s=DB.sessions.find(x=>x.id===id);s.status='done';if(s.pay==='Πακέτο'){s.paid=true;s.fee=0;}save();render();toast(s.pay==='Πακέτο'?`Ολοκληρώθηκε — υπόλοιπο πακέτου: ${credits(s.clientId)}`:'Ολοκληρώθηκε');}
+function quickDone(id){const s=DB.sessions.find(x=>x.id===id);if(s.pay!=='Πακέτο'&&!s.paid&&s.kind!=='activity'&&credits(s.clientId)>0)s.pay='Πακέτο';s.status='done';if(s.pay==='Πακέτο'){s.paid=true;s.fee=0;}save();render();toast(s.pay==='Πακέτο'?`Ολοκληρώθηκε — υπόλοιπο πακέτου: ${credits(s.clientId)}`:'Ολοκληρώθηκε');}
 function quickPaid(id){const s=DB.sessions.find(x=>x.id===id);s.paid=true;save();render();toast('Καταχωρήθηκε πληρωμή');}
 async function quickCancel(id){const s=DB.sessions.find(x=>x.id===id);const c=client(s.clientId);
   if(s.kind==='activity'){if(!await ask(`Ακύρωση «${s.title}» ${fmtD(s.date)};`,{ok:'Ακύρωση',cancel:'Πίσω',danger:true}))return;s.status='cancel';save();render();return toast('Ακυρώθηκε');}
@@ -1033,6 +1038,7 @@ function viewClient(id,tab){const c=client(id);if(!c)return;viewTab=tab||viewTab
       <button onclick="${c.q?`viewClient('${id}','q')`:`openQ('${id}')`}"><span class="ic">📝</span>${c.q?'Ιστορικό':'Συμπλήρωση ιστορικού'}</button>
       <button onclick="viewClient('${id}','files')"><span class="ic">📋</span>Έγγραφα (${DB.docs.filter(d=>d.clientId===id).length})</button>
       <button onclick="openSession(null,null,'${id}')"><span class="ic">🧑‍⚕️</span>Νέα συνεδρία</button>
+      <button onclick="openPkg('${id}')"><span class="ic">💶</span>Προπληρωμή${credits(id)>0?` (${credits(id)})`:''}</button>
     </div>
     <div class="grid2">
       ${field('Τηλέφωνο',c.phone,`<a href="tel:${phoneClean(c.phone)}">${esc(c.phone)}</a>`)}${field('Email',c.email,`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`)}
@@ -1054,8 +1060,8 @@ function viewClient(id,tab){const c=client(id);if(!c)return;viewTab=tab||viewTab
       ${s.subj?`<div class="small" style="margin-top:4px"><b>Θέμα:</b> ${esc(s.subj)}</div>`:''}${s.obs?`<div class="small"><b>Παρατηρήσεις:</b> ${esc(s.obs)}</div>`:''}${s.int?`<div class="small"><b>Παρέμβαση:</b> ${esc(s.int)}</div>`:''}${s.plan?`<div class="small"><b>Πλάνο:</b> ${esc(s.plan)}</div>`:''}</div>`;}).join('')
     :'<div class="empty">Καμία συνεδρία ακόμα.</div>';
   if(viewTab==='fin'){const pk=DB.packages.filter(p=>p.clientId===id).sort((a,b)=>b.date.localeCompare(a.date));const cr=credits(id);
-    body=`<div class="kpi"><div class="card"><div class="v">${done.length}</div><div class="l">συνεδρίες</div></div><div class="card"><div class="v">${money(paid+pk.reduce((a,p)=>a+(+p.amount||0),0))}</div><div class="l">εισπραχθέντα</div></div><div class="card"><div class="v" style="color:${owed?'var(--warn)':'var(--brand)'}">${money(owed)}</div><div class="l">οφειλή</div></div><div class="card"><div class="v">${cr}</div><div class="l">υπόλοιπο πακέτου</div></div></div>
-    <div class="row noprint" style="margin-bottom:10px"><button class="btn sm" onclick="openPkg('${id}')">📦 Νέο πακέτο</button></div>
+    body=`<div class="kpi"><div class="card"><div class="v">${done.length}</div><div class="l">συνεδρίες</div></div><div class="card"><div class="v">${money(paid+pk.reduce((a,p)=>a+(+p.amount||0),0))}</div><div class="l">εισπραχθέντα</div></div><div class="card"><div class="v" style="color:${owed?'var(--warn)':'var(--brand)'}">${money(owed)}</div><div class="l">οφειλή</div></div><div class="card"><div class="v">${cr}</div><div class="l">υπόλοιπο προπληρωμής</div></div></div>
+    <div class="row noprint" style="margin-bottom:10px"><button class="btn sm primary" onclick="openPkg('${id}')">💶 Νέα προπληρωμή</button></div>
     ${pk.length?`<div class="small muted" style="margin-bottom:8px">Πακέτα: ${pk.map(p=>`${fmtD(p.date)} ${p.n}×/${money(p.amount)}${p.exp?` (έως ${fmtD(p.exp)}${p.exp<isoOf(new Date())?' — έληξε':''})`:''}`).join(' · ')}</div>`:''}
     <table><tr><th>Ημ/νία</th><th>Ποσό</th><th>Πληρωμή</th><th></th></tr>${done.map(s=>`<tr><td>${fmtD(s.date)}</td><td>${money(s.fee)}</td><td>${s.paid?'<span class="pill ok">'+esc(s.pay||'ναι')+'</span>':'<span class="pill warn">όχι</span>'}</td><td class="right noprint">${!s.paid?`<button class="btn sm" onclick="quickPaid('${s.id}');viewClient('${id}')">€ Πληρώθηκε</button>`:s.fee>0?`<button class="btn sm ghost" onclick="openRcpt('${s.id}')">🧾${s.rcpt?' #'+s.rcpt:''}</button>`:''}</td></tr>`).join('')}</table>
     ${(()=>{const mm=ss.filter(s=>s.mood!==undefined&&s.mood!==null&&s.mood>=0);return mm.length>1?`<h3 style="margin-top:14px">Πορεία πόνου (VAS)</h3>${moodChart(mm.slice().reverse())}`:''})()}`;}
@@ -1143,9 +1149,28 @@ function printQview(id){viewClient(id,'q');setTimeout(()=>window.print(),200);}
 /* ---- ΠΑΚΕΤΑ ---- */
 function credits(cid){const bought=DB.packages.filter(p=>p.clientId===cid).reduce((a,p)=>a+(+p.n||0),0);
   const used=DB.sessions.filter(s=>s.clientId===cid&&s.pay==='Πακέτο'&&s.status!=='cancel'&&s.status!=='planned').length;return bought-used;}
-function openPkg(cid){$('pkgClient').value=cid;const c=client(cid);$('pkgN').value=10;$('pkgAmt').value=(c?.fee||DB.settings.fee)*10;$('pkgDate').value=isoOf(new Date());const ex=new Date();ex.setMonth(ex.getMonth()+1);$('pkgExp').value=isoOf(ex);openM('mPkg');}
+const pkgFee=cid=>+(client(cid)?.fee||DB.settings.fee||0);
+const pkgUpcoming=cid=>DB.sessions.filter(s=>s.clientId===cid&&s.status==='planned'&&s.pay!=='Πακέτο').sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
+const pkgUnpaid=cid=>DB.sessions.filter(s=>s.clientId===cid&&billable(s)&&!s.paid&&s.pay!=='Πακέτο');
+function pkgAuto(){const cid=$('pkgClient').value,n=+$('pkgN').value||0;if(!$('pkgAmt').dataset.manual)$('pkgAmt').value=n*pkgFee(cid);
+  document.querySelectorAll('#pkgQuick button').forEach(b=>b.classList.toggle('primary',+b.dataset.n===n));
+  const up=pkgUpcoming(cid).length,un=pkgUnpaid(cid);const useOld=un.length&&($('pkgOld')?$('pkgOld').checked:true)?Math.min(un.length,n):0;const futN=Math.min(up,Math.max(0,n-useOld));
+  $('pkgCover').innerHTML=(un.length?`<div class="check" style="margin-top:10px"><input type="checkbox" id="pkgOld" ${useOld||!$('pkgOld')?'checked':''}><label for="pkgOld" style="margin:0">Να καλύψει και ${un.length===1?'την απλήρωτη συνεδρία':`τις ${un.length} απλήρωτες συνεδρίες`} που έχουν ήδη γίνει (${un.map(s=>fmtD(s.date).slice(0,5)).join(', ')})</label></div>`:'')
+    +(up?`<div class="small" style="margin-top:8px">📅 Οι επόμενες ${futN} από τις ${up} κλεισμένες συνεδρίες θα χρεωθούν από την προπληρωμή.</div>`:'');
+  const o=$('pkgOld');if(o)o.onchange=pkgAuto;}
+function openPkg(cid,n){$('pkgClient').value=cid;const c=client(cid);if(!c)return toast('Διάλεξε πρώτα πελάτη');
+  $('pkgWho').textContent=cname(c)+(credits(cid)>0?` · έχει ήδη υπόλοιπο ${credits(cid)}`:'');
+  $('pkgQuick').innerHTML=[1,4,8,10].map(k=>`<button class="btn sm" type="button" data-n="${k}" onclick="$('pkgN').value=${k};pkgAuto()">${k===1?'1 συνεδρία':k+' συνεδρίες'}</button>`).join('');
+  $('pkgN').value=n||1;delete $('pkgAmt').dataset.manual;$('pkgDate').value=isoOf(new Date());$('pkgExp').value='';pkgAuto();openM('mPkg');}
 function savePkg(){const cid=$('pkgClient').value,n=+$('pkgN').value||0,amount=+$('pkgAmt').value||0;if(!n)return toast('Βάλε αριθμό συνεδριών');
-  DB.packages.push({id:uid(),clientId:cid,date:$('pkgDate').value||isoOf(new Date()),exp:$('pkgExp').value||'',n,amount,pay:$('pkgPay').value});save();closeM('mPkg');toast('Καταχωρήθηκε πακέτο');viewClient(cid,'fin');render();}
+  DB.packages.push({id:uid(),clientId:cid,date:$('pkgDate').value||isoOf(new Date()),exp:$('pkgExp').value||'',n,amount,pay:$('pkgPay').value});
+  let left=n,old=0,fut=0;
+  if($('pkgOld')?.checked)pkgUnpaid(cid).sort((a,b)=>a.date.localeCompare(b.date)).forEach(s=>{if(left<=0)return;s.pay='Πακέτο';s.paid=true;s.fee=0;left--;old++;});
+  pkgUpcoming(cid).forEach(s=>{if(left<=0)return;s.pay='Πακέτο';left--;fut++;});
+  save();closeM('mPkg');toast(`Προπληρωμή ${n}× καταχωρήθηκε${old?` · κάλυψε ${old} που χρωστούσε`:''}${fut?` · ${fut} επόμενες χρεώνονται από αυτήν`:''}`);
+  if($('mSess').classList.contains('open')&&$('sClient').value===cid){$('sPay').value='Πακέτο';const cr=credits(cid);$('sPkgInfo').textContent=cr>0?`📦 υπόλοιπο προπληρωμής: ${cr}`:'';}
+  else if($('mView').classList.contains('open'))viewClient(cid,'fin');
+  render();}
 function pkgInfo(cid){const cr=credits(cid);if(cr<=0)return null;const last=DB.packages.filter(p=>p.clientId===cid).sort((a,b)=>b.date.localeCompare(a.date))[0];const expired=last?.exp&&last.exp<isoOf(new Date());return {cr,n:last?.n,exp:last?.exp,expired};}
 
 /* ---- ΑΠΟΔΕΙΞΗ ---- */
@@ -1196,9 +1221,9 @@ function openSession(id,dateIso,clientId){const s=id?DB.sessions.find(x=>x.id===
   $('sFeeI').value=s?s.fee:(client($('sClient').value)?.fee||DB.settings.fee);$('sPaid').checked=!!s?.paid;$('sPay').value=s?.pay||(credits($('sClient').value)>0?'Πακέτο':'Μετρητά');
   $('sRepeat').value='0';$('sRepeatN').value=4;curMood=(s&&s.mood!==undefined&&s.mood!==null&&s.mood!=='')?s.mood:-1;buildMood();
   $('sSubj').value=s?.subj||'';$('sObs').value=s?.obs||'';$('sInt').value=s?.int||'';$('sPlan').value=s?.plan||'';
-  {const c=client($('sClient').value);const cr=c?credits(c.id):0;$('sPkgInfo').textContent=cr>0?`📦 υπόλοιπο πακέτου: ${cr}`:'';const ds=c?docSummary(c.id,3,true):'';$('sDocsInfo').style.display=ds?'':'none';$('sDocsInfo').innerHTML=ds?`<b>📋 Έγγραφα πελάτη</b><br>${ds}`:'';}
+  {const c=client($('sClient').value);const cr=c?credits(c.id):0;$('sPkgInfo').textContent=cr>0?`📦 υπόλοιπο προπληρωμής: ${cr}`:'';const ds=c?docSummary(c.id,3,true):'';$('sDocsInfo').style.display=ds?'':'none';$('sDocsInfo').innerHTML=ds?`<b>📋 Έγγραφα πελάτη</b><br>${ds}`:'';}
   openM('mSess');}
-function sessClientChanged(){const c=client($('sClient').value);if(!$('sId').value&&c?.fee)$('sFeeI').value=c.fee;const cr=c?credits(c.id):0;$('sPkgInfo').textContent=cr>0?`📦 υπόλοιπο πακέτου: ${cr}`:'';if(!$('sId').value)$('sPay').value=cr>0?'Πακέτο':'Μετρητά';
+function sessClientChanged(){const c=client($('sClient').value);if(!$('sId').value&&c?.fee)$('sFeeI').value=c.fee;const cr=c?credits(c.id):0;$('sPkgInfo').textContent=cr>0?`📦 υπόλοιπο προπληρωμής: ${cr}`:'';if(!$('sId').value)$('sPay').value=cr>0?'Πακέτο':'Μετρητά';
   const ds=c?docSummary(c.id,3,true):'';$('sDocsInfo').style.display=ds?'':'none';$('sDocsInfo').innerHTML=ds?`<b>📋 Έγγραφα πελάτη</b><br>${ds}`:'';}
 async function saveSession(){const id=$('sId').value;
   if(curKind==='activity'){const title=$('aTitle').value.trim();if(!title)return toast('Βάλε τίτλο');const addr=$('aAddr').value.trim();const old=id?DB.sessions.find(x=>x.id===id):null;
