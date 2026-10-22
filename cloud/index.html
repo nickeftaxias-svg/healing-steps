@@ -491,6 +491,7 @@ td .btn{padding:5px 10px;font-size:12px} td.right{white-space:nowrap}
       <option value="active">Ενεργοί</option><option value="waitlist">Λίστα αναμονής</option><option value="paused">Σε παύση</option><option value="closed">Ανενεργοί</option><option value="all">Όλοι</option>
     </select>
   </div>
+  <div class="card kiosk-hide" id="dupBanner" hidden style="padding:10px 12px"></div>
   <div class="card" id="clientList"></div>
 </section>
 
@@ -529,6 +530,7 @@ td .btn{padding:5px 10px;font-size:12px} td.right{white-space:nowrap}
     <div id="legacyBox"></div>
     <div class="row" style="gap:8px;flex-wrap:wrap">
       <label class="btn" style="margin:0">📅 Από Google Calendar (.ics / .zip)<input type="file" accept=".ics,.zip,text/calendar,application/zip" style="display:none" onchange="icsPick(this)"></label>
+      <button class="btn" onclick="openDup()">🔗 Διπλοί πελάτες</button>
       <label class="btn" style="margin:0">🗂 Από αρχείο της παλιάς εφαρμογής (.json)<input type="file" accept=".json,application/json" style="display:none" onchange="importJSON(this)"></label>
     </div>
     <p class="small muted" style="margin:10px 0 0">Google Calendar: σε υπολογιστή, <b>calendar.google.com → ⚙️ Ρυθμίσεις → Εισαγωγή και εξαγωγή → Εξαγωγή</b>. Κατεβαίνει ένα .zip — το ανεβάζεις εδώ όπως είναι.</p>
@@ -803,6 +805,17 @@ td .btn{padding:5px 10px;font-size:12px} td.right{white-space:nowrap}
     <div id="migList" style="max-height:46vh;overflow:auto;margin:0 -4px;padding:0 4px"></div>
     <div id="migSum" class="small" style="margin-top:10px;padding:10px 12px;background:var(--brand-soft);border-radius:12px"></div>
     <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn" onclick="closeM('mMig')">Άκυρο</button><button class="btn primary" id="migGo" onclick="migCommit()">Μεταφορά</button></div>
+  </div>
+</div>
+
+<!-- ===== MODAL: ΔΙΠΛΟΙ ΠΕΛΑΤΕΣ ===== -->
+<div class="modal-bg" id="mDup" onclick="if(event.target===this)closeM('mDup')">
+  <div class="modal" style="max-width:640px">
+    <div class="head"><h2>🔗 Διπλοί πελάτες</h2><button class="btn sm ghost" onclick="closeM('mDup')">✕</button></div>
+    <p class="small muted" style="margin:0 0 8px">Πελάτες που μοιάζουν να είναι ο ίδιος άνθρωπος — συνήθως ένας από το Google Calendar (📅) και ένας από την παλιά εφαρμογή. Για κάθε ζευγάρι διάλεξε ποιον κρατάς. Τα πολύ σίγουρα είναι ήδη επιλεγμένα· τα υπόλοιπα έλεγξέ τα εσύ.</p>
+    <div id="dupList" style="max-height:50vh;overflow:auto;margin:0 -4px;padding:0 4px"></div>
+    <div id="dupSum" class="small" style="margin-top:10px;padding:10px 12px;background:var(--brand-soft);border-radius:12px"></div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn" onclick="closeM('mDup')">Άκυρο</button><button class="btn primary" id="dupGo" onclick="dupCommit()">Ένωση</button></div>
   </div>
 </div>
 
@@ -1086,7 +1099,7 @@ function renderCal(){
 }
 
 /* ---- ΠΕΛΑΤΕΣ ---- */
-function renderClients(){
+function renderClients(){dupBanner();
   const q=norm($('clientSearch').value||'');const f=$('clientFilter').value;
   const list=DB.clients.filter(c=>(f==='all'||c.status===f)&&(!q||norm([c.first,c.last,c.phone,c.addr,c.email].join(' ')).includes(q)))
     .sort((a,b)=>(a.last+a.first).localeCompare(b.last+b.first,'el'));
@@ -1110,6 +1123,7 @@ function saveClient(){const first=$('cFirst').value.trim(),last=$('cLast').value
   const dropLegs=()=>{if(DB.legs)for(const k in DB.legs)if(k.split('|').includes(id))delete DB.legs[k];};
   if(c.addr!==$('cAddr').value.trim()&&!c.llManual){c.ll=null;c.km=0;dropLegs();}
   {const raw=$('cLL').value.trim();if(raw){const p=parseLL(raw);if(!p)return toast('Δεν κατάλαβα τις συντεταγμένες — δοκίμασε «40.58, 22.95» ή link Google Maps');if(!c.ll||p[0]!==c.ll[0]||p[1]!==c.ll[1]){c.ll=p;c.llManual=true;c.km=0;dropLegs();}}else if(c.llManual){c.ll=null;c.llManual=false;dropLegs();}}
+  if(c.first!==undefined&&nameKey(c.first,c.last)!==nameKey(first,last)){const o=nameKey(c.first,c.last);c.aka=c.aka||[];if(o&&!c.aka.includes(o))c.aka.push(o);}
   Object.assign(c,{first,last,phone:$('cPhone').value.trim(),email:$('cEmail').value.trim(),dob:$('cDob').value,status:$('cStatus').value,afm:$('cAfm').value.trim(),travel:+$('cTravel').value||0,addr:$('cAddr').value.trim(),floor:$('cFloor').value.trim(),access:$('cAccess').value.trim(),home:$('cHome').value,start:$('cStart').value,freq:$('cFreq').value,fee:+$('cFee').value||0,ref:$('cRef').value,concern:$('cConcern').value,goals:$('cGoals').value,med:$('cMed').value,emName:$('cEmName').value,emPhone:$('cEmPhone').value,notes:$('cNotes').value});
   if(!client(id))DB.clients.push(c);save();closeM('mClient');toast('Αποθηκεύτηκε');render();
   if(c.addr&&!c.km&&(DB.settings.base||DB.settings.baseLL)&&navigator.onLine)calcDistance(id,true).then(ok=>{if(ok){toast(`📏 ${c.km} km · ~${c.travel} λεπτά από βάση`);render();}});}
@@ -1163,7 +1177,7 @@ function viewClient(id,tab){const c=client(id);if(!c)return;viewTab=tab||viewTab
       <div class="row" id="docfiles-${d.id}" style="gap:6px;margin-top:6px"></div></div>`).join(''):'<div class="empty">Κανένα έγγραφο. Πέρασε μαγνητικές, αξονικές, γνωματεύσεις, παραπεμπτικά — θα εμφανίζονται στο ραντεβού.</div>'}
     <div id="filesBox" class="small muted"></div>`;}
   $('mViewBody').innerHTML=`<div class="head"><div class="row" style="gap:10px"><div class="avatar">${esc(initials(c))}</div><div><h2 style="margin:0">${esc(cname(c))}</h2><div class="small muted">${owed?`<span class="pill warn">οφείλει ${money(owed)}</span>`:'<span class="pill ok">εξοφλημένος</span>'} · ${done.length} συνεδρίες</div></div></div><button class="btn sm ghost noprint" onclick="closeM('mView')">✕</button></div>
-    <div class="row noprint" style="margin:8px 0"><button class="btn sm primary" onclick="openSession(null,null,'${id}')">＋ Συνεδρία</button><button class="btn sm" onclick="openClient('${id}')">✎ Επεξεργασία</button><button class="btn sm" onclick="printClient('${id}')">🖨️ Εκτύπωση καρτέλας</button>${c.phone?`<a class="btn sm" href="tel:${phoneClean(c.phone)}">📞</a>`:''}</div>
+    <div class="row noprint" style="margin:8px 0"><button class="btn sm primary" onclick="openSession(null,null,'${id}')">＋ Συνεδρία</button><button class="btn sm" onclick="openClient('${id}')">✎ Επεξεργασία</button><button class="btn sm" onclick="printClient('${id}')">🖨️ Εκτύπωση καρτέλας</button><button class="btn sm kiosk-hide" onclick="openDup('${id}')">🔗 Ένωση</button>${c.phone?`<a class="btn sm" href="tel:${phoneClean(c.phone)}">📞</a>`:''}</div>
     <div class="tabs2 noprint"><button class="${viewTab==='profile'?'active':''}" onclick="viewClient('${id}','profile')">Προφίλ</button><button class="${viewTab==='sessions'?'active':''}" onclick="viewClient('${id}','sessions')">Συνεδρίες (${ss.length})</button><button class="${viewTab==='fin'?'active':''}" onclick="viewClient('${id}','fin')">Οικονομικά</button><button class="${viewTab==='q'?'active':''}" onclick="viewClient('${id}','q')">${c.q?'📝 ':''}Ιστορικό</button><button class="${viewTab==='files'?'active':''}" onclick="viewClient('${id}','files')">Έγγραφα (${DB.docs.filter(d=>d.clientId===id).length})</button></div>
     ${body}`;
   if(viewTab==='files')loadFiles(id);
@@ -1274,7 +1288,7 @@ function icsParse(txt){const lines=icsUnfold(txt);const evs=[];let cur=null;
     else if(k==='RECURRENCE-ID')cur.rid=icsDate(L)[0];else if(k==='STATUS')cur.status=v.trim().toUpperCase();}
   const t0=Date.now(),lo=t0-92*864e5,hi=t0+183*864e5;const out=[];
   const overrides=new Set(evs.filter(e=>e.rid&&e.uid).map(e=>e.uid+'|'+wMs(e.rid)));
-  for(const e of evs){if(!e.start||e.start.allDay||e.status==='CANCELLED'||!e.title)continue;
+  for(const e of evs){if(!e.start||e.start.allDay||e.status==='CANCELLED'||!e.title||icsOwn(e))continue;
     const s0=wMs(e.start);if(s0==null)continue;let dur=e.end&&!e.end.allDay?Math.round((wMs(e.end)-s0)/60000):0;
     if(!dur&&e.dur){const m=e.dur.match(/P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?/);if(m)dur=(+(m[1]||0))*1440+(+(m[2]||0))*60+(+(m[3]||0));}
     if(!dur||dur<0||dur>12*60)dur=dur>12*60?0:(DB.settings.dur||50);if(!dur)continue;
@@ -1295,12 +1309,38 @@ function icsParse(txt){const lines=icsUnfold(txt);const evs=[];let cur=null;
         const last=new Date(Date.UTC(y,m,0)).getUTCDate();if(dd>=1&&dd<=last&&!emit(mk(y,m,dd)))break;m+=iv;while(m>12){m-=12;y++;}}}
     else push(s0);}
   return out;}
-function icsMatch(title){const t=' '+nrm(title)+' ';let best=null,score=0;
-  for(const c of DB.clients){const f=nrm(c.first),l=nrm(c.last);let sc=0;if(f&&l&&t.includes(' '+f+' ')&&t.includes(' '+l+' '))sc=3;else if(l.length>=4&&t.includes(' '+l+' '))sc=2;
-    else if(f.length>=3&&t.includes(' '+f+' ')&&DB.clients.filter(x=>nrm(x.first)===f).length===1)sc=1;if(sc>score){score=sc;best=c;}}return score?best:null;}
+// ραντεβού που έγραψε η ίδια η εφαρμογή στο Google (ημερολόγιο «Healing Steps») — δεν ξαναμπαίνουν
+const icsOwn=e=>/^hs[0-9a-f]{40}(@|$)/i.test(e.uid||'')||/healing-steps\.vercel\.app/.test(e.desc||'');
+/* ---- ταίριασμα ονομάτων: ορθογραφικές παραλλαγές, πτώσεις, greeklish ---- */
+const GRL=[['ου','u'],['ει','i'],['οι','i'],['αι','e'],['ντ','nt'],['μπ','mp'],['γκ','ng'],['γγ','ng'],['θ','th'],['χ','ch'],['ψ','ps'],['ξ','ks'],['α','a'],['β','v'],['γ','g'],['δ','d'],['ε','e'],['ζ','z'],['η','i'],['ι','i'],['κ','k'],['λ','l'],['μ','m'],['ν','n'],['ο','o'],['π','p'],['ρ','r'],['σ','s'],['τ','t'],['υ','i'],['φ','f'],['ω','o']];
+function nmLat(w){if(/[α-ω]/.test(w)){w=w.replace(/^ντ/,'d').replace(/^μπ/,'b').replace(/^γκ/,'g');for(const [g,l] of GRL)w=w.split(g).join(l);}
+  else w=w.replace(/ou/g,'u').replace(/^nt/,'d').replace(/^mp/,'b').replace(/x/g,'ks').replace(/ph/g,'f').replace(/y/g,'i').replace(/w/g,'o').replace(/([^tckps])h/g,'$1i');
+  return w.replace(/(.)\1/g,'$1');}
+const NM_STOP=/^(συζυγοσ|συζ|συζηγοσ|γυναικα|συντροφοσ|μαμα|μητερα|μπαμπασ|πατερασ|γιοσ|κορη|παιδι|αδερφοσ|αδελφοσ|αδερφη|αδελφη|γιαγια|παππουσ|οικογενεια|και|του|τησ|των)$/;
+const nmTok=s=>nrm(s).split(' ').filter(w=>w&&!ICS_FILLER.test(w)&&!NM_STOP.test(w)).map(nmLat).filter(w=>w.length>=2);
+const nmRole=s=>nrm(s).split(' ').some(w=>NM_STOP.test(w)&&!/^(και|του|τησ|των)$/.test(w));
+// δύο λέξεις μοιάζουν: ίδιες, ίδιες χωρίς κατάληξη (Ρωμά/Ρωμάς), ή ίδια αρχή ≥5 γράμματα (Ιορδάνης/Ιορδανίδης)
+function tokSim(a,b){if(a===b)return true;const st=w=>w.replace(/(u|on|is|as|os|es|a|i|o|e|s)$/,'');const x=st(a),y=st(b);if(x.length>=3&&x===y)return true;
+  let p=0;while(p<a.length&&p<b.length&&a[p]===b[p])p++;return p>=5&&p>=0.7*Math.min(a.length,b.length);}
+// 3 = όλο το (μικρότερο) όνομα ταιριάζει σε ≥2 λέξεις · 2 = ≥2 λέξεις · 1 = μία λέξη ≥4 γράμματα · 0 = τίποτα
+function nameScore(ta,tb){if(!ta.length||!tb.length)return 0;const used=new Set();let hit=0,long=false;
+  for(const a of ta){const j=tb.findIndex((b,i)=>!used.has(i)&&tokSim(a,b));if(j>=0){used.add(j);hit++;if(Math.min(a.length,tb[j].length)>=4)long=true;}}
+  if(hit>=2)return hit>=Math.min(ta.length,tb.length)?3:2;return hit===1&&long?1:0;}
+const cliTok=c=>nmTok(`${c.first||''} ${c.last||''}`);
+const phKey=p=>(p||'').replace(/\D/g,'').slice(-10);
+function icsMatch(title){const k=nrm(title),t=' '+k+' ',tt=nmTok(title),role=nmRole(title);let best=null,score=0;
+  for(const c of DB.clients){const f=nrm(c.first),l=nrm(c.last);let sc=0;
+    if((c.aka||[]).includes(k))sc=6;
+    else if(f&&l&&t.includes(' '+f+' ')&&t.includes(' '+l+' '))sc=5;
+    else if(!role){const ns=nameScore(tt,cliTok(c));if(ns===3)sc=4;else if(l.length>=4&&t.includes(' '+l+' '))sc=3;else if(ns===2)sc=2;
+      else if(f.length>=3&&t.includes(' '+f+' ')&&DB.clients.filter(x=>nrm(x.first)===f).length===1)sc=1;}
+    if(sc>score){score=sc;best=c;}}return score?best:null;}
+// για «νέος πελάτης»: υπάρχει κάποιος που μοιάζει; (μόνο υπόδειξη, δεν επιλέγεται αυτόματα)
+function icsLike(title){const tt=nmTok(title);let best=null,s=0;for(const c of DB.clients){const v=nameScore(tt,cliTok(c));if(v>s){s=v;best=c;}}return best;}
+const addAka=(c,k)=>{k=nrm(k);if(!c||!k||k===nameKey(c.first,c.last))return;c.aka=c.aka||[];if(!c.aka.includes(k))c.aka.push(k);};
 function icsGroup(){const g=new Map();ICS.occ.forEach(o=>{const k=nrm(o.title);if(!g.has(k))g.set(k,{k,title:o.title,occ:[],loc:''});const x=g.get(k);x.occ.push(o);if(o.loc&&!x.loc)x.loc=o.loc;});
   ICS.groups=[...g.values()].sort((a,b)=>b.occ.length-a.occ.length);
-  ICS.groups.forEach(x=>{const c=icsMatch(x.title);x.sel=c?c.id:(ICS_SKIP.test(nrm(x.title))?'skip':'new');});}
+  ICS.groups.forEach(x=>{const c=icsMatch(x.title);x.sel=c?c.id:(ICS_SKIP.test(nrm(x.title))?'skip':'new');x.like=c?null:icsLike(x.title);});}
 const icsDup=o=>DB.sessions.some(s=>s.gcalKey===o.key);
 function icsCount(){const today=isoOf(new Date()),past=$('icsPast').checked;let n=0,nc=0;ICS.groups.forEach(x=>{if(x.sel==='skip')return;const k=x.occ.filter(o=>(past||o.date>=today)&&!icsDup(o)).length;n+=k;if(x.sel==='new'&&k)nc++;});return {n,nc};}
 function icsRender(){const today=isoOf(new Date()),past=$('icsPast').checked;const fut=ICS.occ.filter(o=>o.date>=today).length;
@@ -1308,20 +1348,96 @@ function icsRender(){const today=isoOf(new Date()),past=$('icsPast').checked;con
   const opts=x=>`<option value="new" ${x.sel==='new'?'selected':''}>＋ Νέος πελάτης «${esc(icsName(x.title).join(' '))}»</option><option value="act" ${x.sel==='act'?'selected':''}>📌 Δραστηριότητα (όχι πελάτης)</option><option value="skip" ${x.sel==='skip'?'selected':''}>— Παράλειψη</option><optgroup label="Υπάρχων πελάτης">${DB.clients.slice().sort((a,b)=>cname(a).localeCompare(cname(b),'el')).map(c=>`<option value="${c.id}" ${x.sel===c.id?'selected':''}>${esc(cname(c))}</option>`).join('')}</optgroup>`;
   $('icsList').innerHTML=ICS.groups.map((x,i)=>{const sh=x.occ.filter(o=>past||o.date>=today);const dup=sh.filter(icsDup).length;const nx=sh.filter(o=>o.date>=today).sort((a,b)=>a.ms-b.ms)[0];
     return `<div class="list-item" style="display:block;opacity:${sh.length?1:.5}"><div class="row" style="justify-content:space-between;gap:8px"><b style="min-width:0;overflow-wrap:anywhere">${esc(x.title)}</b><span class="pill gray">${sh.length}×</span></div>
-      <div class="small muted">${nx?`επόμενο ${fmtD(nx.date).slice(0,5)} ${nx.time}`:'μόνο παλιά'}${x.loc?` · 📍 ${esc(x.loc.length>40?x.loc.slice(0,40)+'…':x.loc)}`:''}${dup?` · ${dup} υπάρχουν ήδη`:''}</div>
+      <div class="small muted">${nx?`επόμενο ${fmtD(nx.date).slice(0,5)} ${nx.time}`:'μόνο παλιά'}${x.loc?` · 📍 ${esc(x.loc.length>40?x.loc.slice(0,40)+'…':x.loc)}`:''}${dup?` · ${dup} υπάρχουν ήδη`:''}${x.sel==='new'&&x.like?`<br><span style="color:var(--warn,#b45309)">⚠️ Μοιάζει με <b>${esc(cname(x.like))}</b> — αν είναι ο ίδιος, διάλεξέ τον από τη λίστα</span>`:''}</div>
       <select style="margin-top:6px" onchange="ICS.groups[${i}].sel=this.value;icsBtn()">${opts(x)}</select></div>`;}).join('');icsBtn();}
 function icsBtn(){const {n,nc}=icsCount();const b=$('icsGo');b.disabled=!n;b.textContent=n?`Εισαγωγή ${n} ραντεβού${nc?` · ${nc} ${nc===1?'νέος πελάτης':'νέοι πελάτες'}`:''}`:'Τίποτα για εισαγωγή';}
 function icsName(title){const w=(title||'').replace(/[-–—:|/()]+/g,' ').split(/\s+/).filter(x=>x&&!ICS_FILLER.test(nrm(x)));return [w[0]||title.trim(),w.slice(1).join(' ')];}
-function icsCommit(){const today=isoOf(new Date()),now=new Date(),nm=now.getHours()*60+now.getMinutes(),past=$('icsPast').checked;let ns=0,nc=0;
+function icsCommit(){const today=isoOf(new Date()),now=new Date(),nm=now.getHours()*60+now.getMinutes(),past=$('icsPast').checked;let ns=0,nc=0;const made={};
   ICS.groups.forEach(x=>{if(x.sel==='skip')return;const occ=x.occ.filter(o=>(past||o.date>=today)&&!icsDup(o));if(!occ.length)return;let c=null;
-    if(x.sel==='new'){const [first,last]=icsName(x.title);const ph=((x.occ.find(o=>/(\+?30)?\s?69\d[\d ]{7,}/.test(o.desc))||{}).desc||'').match(/(\+?30)?\s?69\d[\d ]{7,}/);
-      c={id:uid(),first,last,phone:ph?ph[0].trim():'',email:'',addr:x.loc||'',floor:'',access:'',status:'active',fee:DB.settings.fee||0,created:today,start:occ[0].date,freq:'',concern:'',goals:'',med:'',notes:'Από Google Calendar'};DB.clients.push(c);nc++;}
+    if(x.sel==='new'&&made[nameKey(...icsName(x.title))])c=made[nameKey(...icsName(x.title))];
+    else if(x.sel==='new'){const [first,last]=icsName(x.title);const ph=((x.occ.find(o=>/(\+?30)?\s?69\d[\d ]{7,}/.test(o.desc))||{}).desc||'').match(/(\+?30)?\s?69\d[\d ]{7,}/);
+      c={id:uid(),first,last,phone:ph?ph[0].trim():'',email:'',addr:x.loc||'',floor:'',access:'',status:'active',fee:DB.settings.fee||0,created:today,start:occ[0].date,freq:'',concern:'',goals:'',med:'',notes:'Από Google Calendar'};DB.clients.push(c);nc++;made[nameKey(first,last)]=c;}
     else if(x.sel!=='act')c=client(x.sel);
+    if(c)addAka(c,x.title);
     occ.forEach(o=>{const done=o.date<today||(o.date===today&&mins(o.time)+o.dur<=nm);
       if(x.sel==='act')DB.sessions.push({id:uid(),by:defBy(),kind:'activity',clientId:'',title:x.title,addr:o.loc,note:'',date:o.date,time:o.time,dur:o.dur,type:'activity',status:'planned',fee:0,paid:false,gcalKey:o.key});
       else DB.sessions.push({id:uid(),by:defBy(),clientId:c.id,date:o.date,time:o.time,dur:o.dur,type:(o.loc||c.addr)?'home':'office',status:done?'done':'planned',fee:+c.fee||+DB.settings.fee||0,paid:done,pay:'Μετρητά',mood:'',subj:'',obs:'',int:'',plan:'',gcalKey:o.key});
       ns++;});});
   save();closeM('mIcs');render();toast(`Μπήκαν ${ns} ραντεβού${nc?` και ${nc} ${nc===1?'νέος πελάτης':'νέοι πελάτες'}`:''}`);}
+
+/* ---- ΔΙΠΛΟΙ ΠΕΛΑΤΕΣ: εύρεση + ένωση (κρατάει όλο το ιστορικό, χωρίς διπλές πληρωμές) ---- */
+let DUP=null;
+function dupStats(c){const t=isoOf(new Date());const ss=DB.sessions.filter(s=>s.clientId===c.id);
+  return {done:ss.filter(s=>s.status==='done'||s.status==='noshow').length,fut:ss.filter(s=>s.status==='planned'&&s.date>=t).length,all:ss.length};}
+// ζευγάρια που μοιάζουν: ίδιο τηλέφωνο, παλιό όνομα/τίτλος ημερολογίου, ή ίδιο όνομα με παραλλαγές
+function dupPairs(){const L=DB.clients,T=L.map(cliTok),K=L.map(c=>nameKey(c.first,c.last)),R=L.map(c=>nmRole(`${c.first} ${c.last}`)),out=[];
+  for(let i=0;i<L.length;i++)for(let j=i+1;j<L.length;j++){const a=L[i],b=L[j];let sc=0,why='';
+    if(K[i]&&K[i]===K[j]){sc=4;why='ίδιο όνομα';}
+    else if((a.aka||[]).includes(K[j])||(b.aka||[]).includes(K[i])){sc=4;why='παλιό όνομα';}
+    else if(phKey(a.phone).length>=10&&phKey(a.phone)===phKey(b.phone)){sc=4;why='ίδιο τηλέφωνο';}
+    else{const n=nameScore(T[i],T[j]);if(n===3&&!R[i]&&!R[j]){sc=3;why='σχεδόν ίδιο όνομα';}else if(n>=2){sc=2;why='μοιάζει το όνομα';}
+      else if(n===1&&(fromCal(a)||fromCal(b))){sc=1;why='κοινό όνομα/επώνυμο';
+        // ένα μόνο όνομα στο ημερολόγιο (π.χ. «Ρωμάς») που ταιριάζει σε ΕΝΑΝ μόνο πελάτη → σχεδόν σίγουρο
+        const one=T[i].length===1?i:T[j].length===1?j:-1;if(one>=0&&fromCal(L[one])&&!R[i]&&!R[j]&&L.filter((x,q)=>q!==one&&nameScore(T[one],T[q])>=1).length===1){sc=3;why='ίδιο όνομα (μοναδικό)';}}}
+    if(sc)out.push({a,b,sc,why});}
+  return out.sort((x,y)=>y.sc-x.sc||cname(x.a).localeCompare(cname(y.a),'el'));}
+// ποιον κρατάμε: αυτόν που ΔΕΝ ήρθε από το ημερολόγιο / έχει περισσότερο ιστορικό
+function dupKeep(a,b){const ca=fromCal(a),cb=fromCal(b);if(ca!==cb)return ca?'b':'a';const x=dupStats(a),y=dupStats(b);return y.done>x.done?'b':'a';}
+function openDup(id){const P=dupPairs().filter(p=>!id||p.a.id===id||p.b.id===id);
+  DUP={id,rows:P.map(p=>({...p,sel:p.sc>=3?dupKeep(p.a,p.b):'no'}))};
+  if(id){const c=client(id);DUP.manual={c,other:'',keep:'a'};}
+  dupRender();openM('mDup');}
+function dupCard(c){const st=dupStats(c);return `<div style="flex:1;min-width:0"><b style="overflow-wrap:anywhere">${fromCal(c)?'📅 ':''}${esc(cname(c))}</b><div class="small muted">${st.done} έγιναν · ${st.fut} μελλοντικές · ${money(+c.fee||0)}${c.phone?' · '+esc(c.phone):''}</div></div>`;}
+function dupRender(){const D=DUP;let h='';
+  if(D.manual){const c=D.manual.c,others=DB.clients.filter(x=>x.id!==c.id).map(x=>({x,s:nameScore(cliTok(c),cliTok(x))})).sort((p,q)=>q.s-p.s||cname(p.x).localeCompare(cname(q.x),'el'));
+    const o=client(D.manual.other);
+    h+=`<div class="list-item" style="display:block"><div class="small muted">Χειροκίνητη ένωση</div>${dupCard(c)}
+      <label style="margin-top:6px">Ίδιος άνθρωπος με:</label><select onchange="DUP.manual.other=this.value;dupRender()"><option value="">— διάλεξε —</option>${others.map(p=>`<option value="${p.x.id}" ${D.manual.other===p.x.id?'selected':''}>${fromCal(p.x)?'📅 ':''}${esc(cname(p.x))}${p.s?' ★':''}</option>`).join('')}</select>
+      ${o?`<div class="row" style="gap:8px;margin-top:6px">${dupCard(o)}</div><select style="margin-top:6px" onchange="DUP.manual.keep=this.value;dupSum()"><option value="a" ${D.manual.keep==='a'?'selected':''}>Κράτα «${esc(cname(c))}»</option><option value="b" ${D.manual.keep==='b'?'selected':''}>Κράτα «${esc(cname(o))}»</option></select>`:''}</div>`;}
+  h+=D.rows.map((r,i)=>`<div class="list-item" style="display:block"><div class="row" style="gap:8px;flex-wrap:nowrap;align-items:flex-start">${dupCard(r.a)}<span class="muted" style="padding-top:2px">⇄</span>${dupCard(r.b)}</div>
+    <div class="small muted" style="margin-top:2px">${esc(r.why)}</div>
+    <select style="margin-top:6px" onchange="DUP.rows[${i}].sel=this.value;dupSum()"><option value="no" ${r.sel==='no'?'selected':''}>— Δεν είναι ο ίδιος</option><option value="a" ${r.sel==='a'?'selected':''}>Ένωση · κράτα «${esc(cname(r.a))}»</option><option value="b" ${r.sel==='b'?'selected':''}>Ένωση · κράτα «${esc(cname(r.b))}»</option></select></div>`).join('');
+  if(!h)h='<div class="empty small">Δεν βρέθηκαν πελάτες που να μοιάζουν. 👍</div>';
+  $('dupList').innerHTML=h;dupSum();}
+function dupPlan(){const D=DUP,ops=[];if(D.manual&&D.manual.other){const o=client(D.manual.other);if(o)ops.push(D.manual.keep==='a'?[D.manual.c,o]:[o,D.manual.c]);}
+  D.rows.forEach(r=>{if(r.sel==='a')ops.push([r.a,r.b]);else if(r.sel==='b')ops.push([r.b,r.a]);});return ops;}
+function dupSum(){const ops=dupPlan();const n=new Set(ops.map(o=>o[1].id)).size;
+  $('dupSum').innerHTML=n?`<b>${n}</b> ${n===1?'προφίλ ενώνεται':'προφίλ ενώνονται'} με τον πελάτη που κρατάς. Περνάνε συνεδρίες, πληρωμές, πακέτα, ιστορικό, έγγραφα και αρχεία· ένα ραντεβού που υπάρχει και στους δύο μένει μία φορά· οι μελλοντικές συνεδρίες παίρνουν την τιμή του πελάτη που κρατάς. Στο Google Calendar ενημερώνονται μόνα τους.`:'Διάλεξε ποια ζευγάρια είναι ο ίδιος άνθρωπος.';
+  $('dupGo').disabled=!n;$('dupGo').textContent=n?`Ένωση ${n}`:'Ένωση';}
+function mergeClients(keep,drop){const def=+DB.settings.fee||50,today=isoOf(new Date()),r={moved:0,removed:0,repriced:0};if(!keep||!drop||keep===drop)return r;
+  const dropFee=+drop.fee,calKeep=fromCal(keep);
+  // στοιχεία: ό,τι λείπει από αυτόν που κρατάμε έρχεται από τον άλλο
+  for(const k in drop){if(['id','created','first','last','aka','notes','fee','start'].includes(k))continue;const v=drop[k];if(v===undefined||v===null||v===''||(Array.isArray(v)&&!v.length))continue;const cur=keep[k];
+    if(cur===undefined||cur===null||cur===''||(Array.isArray(cur)&&!cur.length))keep[k]=v;}
+  const nn=[keep.notes,drop.notes].filter(x=>x&&x!=='Από Google Calendar');keep.notes=nn.length?[...new Set(nn)].join('\n'):(keep.notes||drop.notes||'');
+  if(drop.start&&(!keep.start||drop.start<keep.start))keep.start=drop.start;
+  if(+dropFee&&(!+keep.fee||(calKeep&&+keep.fee===def&&!fromCal(drop))))keep.fee=dropFee;
+  addAka(keep,nameKey(drop.first,drop.last));(drop.aka||[]).forEach(a=>addAka(keep,a));
+  // συνεδρίες: ίδια μέρα+ώρα (ή ίδια μέρα για ολοκληρωμένες) = το ίδιο ραντεβού → μένει μία, προτιμάμε αυτή που πέρασε άνθρωπος (όχι από το ημερολόγιο)
+  const slot=s=>s.date+'|'+(s.time||''),fin=s=>s.status==='done'||s.status==='noshow';const bySlot=new Map(),byDay=new Map(),rm=new Set();
+  DB.sessions.forEach(s=>{if(s.clientId!==keep.id||s.kind==='activity')return;bySlot.set(slot(s),s);if(fin(s))byDay.set(s.date,s);});
+  DB.sessions.forEach(s=>{if(s.clientId!==drop.id)return;const twin=bySlot.get(slot(s))||(fin(s)?byDay.get(s.date):null);
+    if(twin&&twin.status!=='cancel'&&s.status!=='cancel'){if(twin.gcalKey&&!s.gcalKey){rm.add(twin.id);s.clientId=keep.id;r.moved++;bySlot.set(slot(s),s);if(fin(s))byDay.set(s.date,s);}else rm.add(s.id);return;}
+    s.clientId=keep.id;r.moved++;bySlot.set(slot(s),s);if(fin(s))byDay.set(s.date,s);});
+  r.removed=rm.size;DB.sessions=DB.sessions.filter(s=>!rm.has(s.id));
+  // τιμές: μελλοντικές με την προεπιλεγμένη/την τιμή του διπλού, και όσες ήρθαν αυτόματα από το ημερολόγιο με την προεπιλογή
+  if(+keep.fee)DB.sessions.forEach(s=>{if(s.clientId!==keep.id||s.pay==='Πακέτο'||+s.fee===+keep.fee)return;
+    if((s.status==='planned'&&s.date>=today&&(+s.fee===def||+s.fee===dropFee))||(s.gcalKey&&+s.fee===def)){s.fee=+keep.fee;r.repriced++;}});
+  DB.packages.forEach(p=>{if(p.clientId===drop.id)p.clientId=keep.id;});DB.docs.forEach(d=>{if(d.clientId===drop.id)d.clientId=keep.id;});
+  (DB.files||[]).forEach(f=>{if(f.clientId===drop.id)f.clientId=keep.id;});
+  try{(typeof _dbAll==='function'?_dbAll:dbAll)(drop.id).then(fs=>fs.forEach(f=>{f.clientId=keep.id;(typeof _dbPut==='function'?_dbPut:dbPut)(f).catch(()=>{});})).catch(()=>{});}catch(e){}
+  if(DB.legs)for(const k in DB.legs)if(k.split('|').includes(drop.id))delete DB.legs[k];
+  DB.clients=DB.clients.filter(c=>c.id!==drop.id);return r;}
+async function dupCommit(){const ops=dupPlan();if(!ops.length)return;
+  // αν κάποιος ενώνεται πολλές φορές (Α←Β, Β←Γ) ακολουθούμε την αλυσίδα
+  const to={};const res=c=>{let id=c.id,g=0;while(to[id]&&g++<50)id=to[id];return client(id);};
+  if(!await ask(`Ένωση ${ops.length} ${ops.length===1?'ζευγαριού':'ζευγαριών'}; Τα διπλά προφίλ φεύγουν και όλα τους τα στοιχεία περνάνε στον πελάτη που κρατάς.`,{title:'Ένωση πελατών',ok:'Ένωση',cancel:'Άκυρο',danger:false}))return;
+  const tot={n:0,moved:0,removed:0,repriced:0};
+  for(const [k,d] of ops){const keep=res(k),drop=res(d);if(!keep||!drop||keep===drop)continue;const r=mergeClients(keep,drop);to[drop.id]=keep.id;tot.n++;tot.moved+=r.moved;tot.removed+=r.removed;tot.repriced+=r.repriced;}
+  save();closeM('mDup');closeM('mView');render();
+  toast(`Ενώθηκαν ${tot.n} · ${tot.moved} συνεδρίες μεταφέρθηκαν${tot.removed?` · ${tot.removed} διπλές αφαιρέθηκαν`:''}${tot.repriced?` · ${tot.repriced} πήραν σωστή τιμή`:''}`);}
+function dupBanner(){const b=$('dupBanner');if(!b)return;const n=dupPairs().filter(p=>p.sc>=3).length;b.hidden=!n;
+  if(n)b.innerHTML=`<div class="row" style="justify-content:space-between;gap:8px"><span class="small"><b>${n}</b> ${n===1?'πιθανό διπλό προφίλ':'πιθανά διπλά προφίλ'} (π.χ. από το ημερολόγιο)</span><button class="btn sm primary" onclick="openDup()">🔗 Έλεγχος</button></div>`;}
 
 /* ---- ΠΑΚΕΤΑ ---- */
 function credits(cid){const bought=DB.packages.filter(p=>p.clientId===cid).reduce((a,p)=>a+(+p.n||0),0);
@@ -1864,6 +1980,9 @@ const fromCal=c=>/Google Calendar/.test(c.notes||'');
 function matchExisting(lc,L){if(client(lc.id))return client(lc.id);
   const k1=nameKey(lc.first,lc.last),k2=nameKey(lc.last,lc.first);
   let m=DB.clients.filter(c=>{const k=nameKey(c.first,c.last);return k&&(k===k1||k===k2);});if(m.length===1)return m[0];if(m.length>1)return m.find(fromCal)||m[0];
+  m=DB.clients.filter(c=>(c.aka||[]).some(a=>a===k1||a===k2));if(m.length===1)return m[0];
+  const ph=phKey(lc.phone);if(ph.length>=10){m=DB.clients.filter(c=>phKey(c.phone)===ph);if(m.length===1)return m[0];}
+  {const t=cliTok(lc);m=DB.clients.filter(c=>nameScore(t,cliTok(c))===3);if(m.length===1)return m[0];}
   const ln=nrm(lc.last),fn=nrm(lc.first);const uniq=(f,v)=>v&&L.filter(x=>nrm(x[f])===v).length===1;
   m=DB.clients.filter(c=>fromCal(c)&&!nrm(c.last)&&((uniq('last',ln)&&nrm(c.first)===ln)||(uniq('first',fn)&&nrm(c.first)===fn&&!DB.clients.some(o=>o!==c&&nrm(o.first)===fn))));
   return m.length===1?m[0]:null;}
@@ -2162,10 +2281,13 @@ const GC_ERR={missing_sa:'Δεν έχει μπει ακόμα το κλειδί 
 const gcErr=e=>GC_ERR[e]||e||'';
 function gcalQueue(rows){if(!CS.practice?.gcal_id||(CS.noGcalUntil&&Date.now()<CS.noGcalUntil))return;rows.forEach(r=>{if(r.kind==='sessions')GC.q.s.add(r.id);else if(r.kind==='clients')GC.q.c.add(r.id);});
   if(!GC.q.s.size&&!GC.q.c.size)return;clearTimeout(GC.t);GC.t=setTimeout(gcalFlush,800);}
-async function gcalFlush(){if(GC.busy){GC.t=setTimeout(gcalFlush,1500);return;}const sessions=[...GC.q.s],clients=[...GC.q.c];GC.q.s.clear();GC.q.c.clear();if(!sessions.length&&!clients.length)return;
-  GC.busy=true;try{const {data,error}=await sb.functions.invoke('hs-gcal',{body:{action:'sync',practice_id:CS.practice.id,sessions,clients}});if(error)throw error;
+async function gcalFlush(){if(GC.busy){GC.t=setTimeout(gcalFlush,1500);return;}
+  // σε δόσεις των 150 — η function δέχεται έως 500 ανά κλήση και μετά από μια ένωση πελατών αλλάζουν εκατοντάδες
+  const all=[...GC.q.s],sessions=all.slice(0,150),clients=[...GC.q.c].slice(0,80);GC.q.s.clear();all.slice(150).forEach(x=>GC.q.s.add(x));clients.forEach(x=>GC.q.c.delete(x));if(!sessions.length&&!clients.length)return;
+  let retry=false;GC.busy=true;try{const {data,error}=await sb.functions.invoke('hs-gcal',{body:{action:'sync',practice_id:CS.practice.id,sessions,clients}});if(error)throw error;
     if(data&&!data.ok){CS.practice.gcal_error=(data.errors&&data.errors[0])||data.error;renderGcal();}else if(CS.practice.gcal_error){CS.practice.gcal_error=null;renderGcal();}}
-  catch(e){console.warn('gcal',e);sessions.forEach(x=>GC.q.s.add(x));clients.forEach(x=>GC.q.c.add(x));GC.t=setTimeout(gcalFlush,60000);}finally{GC.busy=false;}}
+  catch(e){console.warn('gcal',e);retry=true;sessions.forEach(x=>GC.q.s.add(x));clients.forEach(x=>GC.q.c.add(x));GC.t=setTimeout(gcalFlush,60000);}finally{GC.busy=false;}
+  if(!retry&&(GC.q.s.size||GC.q.c.size)){clearTimeout(GC.t);GC.t=setTimeout(gcalFlush,500);}}
 async function gcalCall(action){const {data,error}=await sb.functions.invoke('hs-gcal',{body:{action,practice_id:CS.practice.id}});if(error){let m=error.message;try{const j=await error.context.json();m=j.error||m;}catch(x){}throw new Error(m);}return data;}
 async function gcalCheck(silent){if(!CS.practice)return;try{GC.info=await gcalCall('status');CS.practice.gcal_error=GC.info.ok?null:GC.info.error;if(!silent)toast(GC.info.ok?`Συνδέθηκε με «${GC.info.summary}»`:gcErr(GC.info.error));}catch(e){GC.info={ok:false,error:e.message};if(!silent)toast(e.message);}renderGcal();}
 async function gcalSave(){const id=($('gcalId').value||'').trim().replace(/^.*[?&]src=/,'').replace(/&.*$/,'');const v=decodeURIComponent(id);
