@@ -1124,8 +1124,12 @@ function saveClient(){const first=$('cFirst').value.trim(),last=$('cLast').value
   if(c.addr!==$('cAddr').value.trim()&&!c.llManual){c.ll=null;c.km=0;dropLegs();}
   {const raw=$('cLL').value.trim();if(raw){const p=parseLL(raw);if(!p)return toast('Δεν κατάλαβα τις συντεταγμένες — δοκίμασε «40.58, 22.95» ή link Google Maps');if(!c.ll||p[0]!==c.ll[0]||p[1]!==c.ll[1]){c.ll=p;c.llManual=true;c.km=0;dropLegs();}}else if(c.llManual){c.ll=null;c.llManual=false;dropLegs();}}
   if(c.first!==undefined&&nameKey(c.first,c.last)!==nameKey(first,last)){const o=nameKey(c.first,c.last);c.aka=c.aka||[];if(o&&!c.aka.includes(o))c.aka.push(o);}
+  const oldFee=+c.fee||0;
   Object.assign(c,{first,last,phone:$('cPhone').value.trim(),email:$('cEmail').value.trim(),dob:$('cDob').value,status:$('cStatus').value,afm:$('cAfm').value.trim(),travel:+$('cTravel').value||0,addr:$('cAddr').value.trim(),floor:$('cFloor').value.trim(),access:$('cAccess').value.trim(),home:$('cHome').value,start:$('cStart').value,freq:$('cFreq').value,fee:+$('cFee').value||0,ref:$('cRef').value,concern:$('cConcern').value,goals:$('cGoals').value,med:$('cMed').value,emName:$('cEmName').value,emPhone:$('cEmPhone').value,notes:$('cNotes').value});
-  if(!client(id))DB.clients.push(c);save();closeM('mClient');toast('Αποθηκεύτηκε');render();
+  if(!client(id))DB.clients.push(c);
+  // νέα αμοιβή πελάτη → περνάει και στις μελλοντικές συνεδρίες του που είχαν την παλιά/την προεπιλεγμένη (όχι πακέτα, όχι ειδικές τιμές)
+  let rf=0;if(oldFee!==+c.fee&&+c.fee){const t=isoOf(new Date()),def=+DB.settings.fee||50;DB.sessions.forEach(s=>{if(s.clientId===id&&s.status==='planned'&&s.date>=t&&s.pay!=='Πακέτο'&&(+s.fee===oldFee||+s.fee===def||!+s.fee)&&+s.fee!==+c.fee){s.fee=+c.fee;rf++;}});}
+  save();closeM('mClient');toast(rf?`Αποθηκεύτηκε · ${rf} μελλοντικές συνεδρίες πήραν τη νέα τιμή`:'Αποθηκεύτηκε');render();
   if(c.addr&&!c.km&&(DB.settings.base||DB.settings.baseLL)&&navigator.onLine)calcDistance(id,true).then(ok=>{if(ok){toast(`📏 ${c.km} km · ~${c.travel} λεπτά από βάση`);render();}});}
 async function deleteClient(){const id=$('cId').value;if(!await ask('Διαγραφή πελάτη ΚΑΙ όλων των συνεδριών του; Δεν αναιρείται.'))return;
   DB.clients=DB.clients.filter(c=>c.id!==id);DB.sessions=DB.sessions.filter(s=>s.clientId!==id);DB.packages=DB.packages.filter(p=>p.clientId!==id);DB.docs=DB.docs.filter(d=>d.clientId!==id);dbAll(id).then(fs=>fs.forEach(f=>dbDel(f.id))).catch(()=>{});save();closeM('mClient');closeM('mView');render();}
@@ -1532,10 +1536,16 @@ async function saveSession(){const id=$('sId').value;
     const q=base.type==='home'?quietHours(base.date,base.time):'';if(q&&!await ask(`Η ώρα ${base.time} πέφτει σε ${q}. Συνέχεια;`))return;}
   if(base.pay==='Πακέτο'){if(base.status==='done'){base.paid=true;base.fee=0;}const cr=credits(base.clientId)-(id&&DB.sessions.find(x=>x.id===id)?.pay==='Πακέτο'&&DB.sessions.find(x=>x.id===id)?.status==='done'?0:1);
     if(base.status==='done'&&cr<0&&!await ask('Ο πελάτης δεν έχει υπόλοιπο πακέτου. Συνέχεια;'))return;}
-  if(id){Object.assign(DB.sessions.find(x=>x.id===id),base);}
+  let nf=0;
+  if(id){const old=DB.sessions.find(x=>x.id===id),of=+old.fee||0;
+    if(of!==base.fee&&base.pay!=='Πακέτο'&&base.fee>0){const t=isoOf(new Date());const next=DB.sessions.filter(x=>x.id!==id&&x.clientId===base.clientId&&x.status==='planned'&&x.date>=t&&x.date>=base.date&&x.pay!=='Πακέτο'&&+x.fee===of);
+      const c=client(base.clientId);
+      if(next.length&&await ask(`Η τιμή άλλαξε από ${money(of)} σε ${money(base.fee)}.\n\nΝα αλλάξει και στις ${next.length} επόμενες συνεδρίες του πελάτη${c?` «${cname(c)}»`:''} (και στην καρτέλα του);`,{title:'Και στις επόμενες;',ok:'Ναι, σε όλες τις επόμενες',cancel:'Μόνο σε αυτή',danger:false})){
+        next.forEach(x=>x.fee=base.fee);nf=next.length;if(c)c.fee=base.fee;}}
+    Object.assign(old,base);}
   else{DB.sessions.push({id:uid(),...base});const rep=+$('sRepeat').value,n=+$('sRepeatN').value||0;
     if(rep>0)for(let i=1;i<n;i++)DB.sessions.push({id:uid(),...base,date:addDays(base.date,rep*i),status:'planned',paid:false,mood:0,subj:'',obs:'',int:'',plan:''});}
-  save();closeM('mSess');toast('Αποθηκεύτηκε');render();if($('mView').classList.contains('open'))viewClient(base.clientId);}
+  save();closeM('mSess');toast(nf?`Αποθηκεύτηκε · νέα τιμή και σε ${nf} επόμενες συνεδρίες`:'Αποθηκεύτηκε');render();if($('mView').classList.contains('open'))viewClient(base.clientId);}
 async function deleteSession(){const id=$('sId').value;if(!await ask('Διαγραφή συνεδρίας;'))return;const s=DB.sessions.find(x=>x.id===id);DB.sessions=DB.sessions.filter(x=>x.id!==id);save();closeM('mSess');render();if($('mView').classList.contains('open'))viewClient(s.clientId);}
 
 /* ---- ΟΙΚΟΝΟΜΙΚΑ ---- */
@@ -2059,7 +2069,10 @@ function h53(str){let h1=0xdeadbeef,h2=0x41c6ce57;for(let i=0;i<str.length;i++){
   h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);return (4294967296*(2097151&h2)+(h1>>>0)).toString(36);}
 const splitKey=k=>{const i=k.indexOf('|');return [k.slice(0,i),k.slice(i+1)];};
 function syncSettings(){const st={};for(const k in DB.settings)if(!LOCAL_SETTINGS.includes(k))st[k]=DB.settings[k];return st;}
-function snapshot(){const m={};SYNC_KINDS.forEach(k=>(DB[k]||[]).forEach(r=>{if(r&&r.id)m[k+'|'+r.id]=JSON.stringify(r);}));m['settings|settings']=JSON.stringify(syncSettings());m['meta|legs']=JSON.stringify(DB.legs||{});return m;}
+// ίδια σειρά κλειδιών με το jsonb της Postgres (πρώτα τα μικρότερα, μετά αλφαβητικά), ώστε τοπικό και server να βγάζουν ίδιο hash
+const jsort=v=>Array.isArray(v)?v.map(jsort):(v&&typeof v==='object')?Object.keys(v).sort((a,b)=>a.length-b.length||(a<b?-1:a>b?1:0)).reduce((o,k)=>{if(v[k]!==undefined)o[k]=jsort(v[k]);return o;},{}):v;
+const jcanon=v=>JSON.stringify(jsort(v));
+function snapshot(){const m={};SYNC_KINDS.forEach(k=>(DB[k]||[]).forEach(r=>{if(r&&r.id)m[k+'|'+r.id]=jcanon(r);}));m['settings|settings']=jcanon(syncSettings());m['meta|legs']=jcanon(DB.legs||{});return m;}
 function saveMeta(){lsSet(META_KEY,{user_id:CS.user?.id,email:CS.user?.email,practice:CS.practice&&{id:CS.practice.id,name:CS.practice.name,invite_code:CS.practice.invite_code,gcal_id:CS.practice.gcal_id},role:CS.role,cursor:CS.cursor});lsSet(BASE_KEY,CS.base);}
 const SYNC_L={local:'Μόνο σε αυτή τη συσκευή',connecting:'Σύνδεση…',syncing:'Συγχρονισμός…',ok:'Συγχρονισμένο',pending:'Αλλαγές προς αποστολή',offline:'Εκτός σύνδεσης — θα σταλούν μόλις βρεθεί internet',error:'Σφάλμα συγχρονισμού'};
 function setSync(s,err){CS.status=s;CS.err=err||'';if(s==='ok')CS.last=new Date();const d=$('syncDot');if(d){d.hidden=!CLOUD_ON;d.dataset.s=s;d.title=SYNC_L[s]+(err?': '+err:'');}const t=$('cloudStatus');if(t)t.textContent=SYNC_L[s]+(s==='ok'&&CS.last?' · '+hhmm(CS.last):'')+(err?' — '+err:'');}
@@ -2085,7 +2098,7 @@ async function cloudPull(full){if(!CS.practice||!navigator.onLine)return 0;
   for(;;){let q=sb.from('hs_records').select('kind,id,data,deleted,updated_at').eq('practice_id',CS.practice.id).order('updated_at',{ascending:true}).range(from,from+999);if(since)q=q.gte('updated_at',since);
     const {data,error}=await q;if(error)throw error;rows=rows.concat(data);if(data.length<1000)break;from+=1000;}
   if(!rows.length)return 0;const snap=snapshot();let changed=0;CS.applying=true;
-  try{rows.forEach(r=>{const key=r.kind+'|'+r.id;const rh=r.deleted?null:h53(JSON.stringify(r.data));const lh=key in snap?h53(snap[key]):null;
+  try{rows.forEach(r=>{const key=r.kind+'|'+r.id;const rh=r.deleted?null:h53(jcanon(r.data));const lh=key in snap?h53(snap[key]):null;
       const localPending=!(CS.fresh&&(r.kind==='settings'||r.kind==='meta'))&&(lh!==(CS.base[key]??null));
       if(!localPending&&lh!==rh){applyRow(r);changed++;}
       if(r.deleted)delete CS.base[key];else CS.base[key]=rh;
